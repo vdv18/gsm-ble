@@ -8,7 +8,8 @@ struct led_struct_s {
   int temp;
 };
 static struct led_struct_s leds[LEDS_NUM];
-static app_timer_id_t timer_id;
+static app_timer_t timer;
+static app_timer_id_t timer_id = &timer;
 static void led_handler(void * p_context)
 {
   for(int i=0;i<LEDS_NUM;i++)

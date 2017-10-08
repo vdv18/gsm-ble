@@ -1,5 +1,8 @@
 #include "uart.h"
 #include "nrf.h"
+#include "app_timer.h"
+static app_timer_t timer;
+static app_timer_id_t timer_id = &timer;
 void UARTE0_UART0_IRQHandler()
 {
   if(NRF_UART0->EVENTS_TXDRDY){

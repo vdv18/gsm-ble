@@ -10,7 +10,8 @@
 
 static void default_handler(modem_state_t state);
 static modem_handler_t handler = default_handler;
-static app_timer_id_t timer_id;
+static app_timer_t timer;
+static app_timer_id_t timer_id = &timer;
 
 #define STATE_INIT              0x00
 #define STATE_PWR_KEY_ON        0x01
