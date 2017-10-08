@@ -1,0 +1,1 @@
+Example project was developed for testing purpose.
