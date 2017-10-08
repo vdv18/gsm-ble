@@ -1,6 +1,9 @@
 #include "nrf.h"
 #include "ble.h"
 #include "nrf_sdm.h"
+#include "sensors.h"
+#include "modem.h"
+#include "led.h"
 
 #include <stdlib.h>
 
@@ -362,19 +365,52 @@ static void power_manage(void)
 //    APP_ERROR_CHECK(err_code);
 }
 static int ready = 0;
+
+static uint64_t sensors[4];
+
+void sensors_handler( enum sensors_index_e sensor, uint64_t data )
+{
+  switch(sensor)
+  {
+    case SENSOR_ADC_1:
+      sensors[0] = data;
+      break;
+    case SENSOR_ADC_2:
+      sensors[1] = data;
+      break;
+    case SENSOR_ADC_3:
+      sensors[2] = data;
+      break;
+    case SENSOR_ADC_4:
+      sensors[3] = data;
+      break;
+  }
+}
+
+void modem_handler(modem_state_t state)
+{
+  switch(state)
+  {
+    case MODEM_INITIALIZED:
+      ble_central_init();
+      sensors_init(sensors_handler);
+      break;
+    case MODEM_DISABLED:
+      ble_adv_init();
+      sensors_init(sensors_handler);
+      break;
+      
+  }
+}
+
 void main()
 {
   if(app_timer_init() != NRF_SUCCESS)
   {
     while(1);
   }
-  //ble_adv_init();
-  //ble_central_init();
-  
-  
-  
-  
-  
+  led_init();
+  modem_init(modem_handler);
   while(1){
     if (ready)
     {

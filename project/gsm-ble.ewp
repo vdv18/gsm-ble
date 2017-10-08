@@ -2171,6 +2171,12 @@
       <name>$PROJ_DIR$\..\sources\sdk_config.h</name>
     </file>
     <file>
+      <name>$PROJ_DIR$\..\sources\sensors.c</name>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\sources\sensors.h</name>
+    </file>
+    <file>
       <name>$PROJ_DIR$\..\sources\system_nrf52.c</name>
     </file>
     <file>
