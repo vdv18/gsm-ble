@@ -50,21 +50,28 @@ static void power_manage(void)
 }
 static int ready = 0;
 static uint64_t sensors[4];
+static uint16_t sensor_raw_data[4];
 void sensors_handler( enum sensors_index_e sensor, uint64_t data )
 {
+  static uint16_t id = 0;
   switch(sensor)
   {
     case SENSOR_ADC_1:
       sensors[0] = data;
+      sensor_raw_data[0] = data &0xFFFF;
       break;
     case SENSOR_ADC_2:
       sensors[1] = data;
+      sensor_raw_data[1] = data &0xFFFF;
       break;
     case SENSOR_ADC_3:
       sensors[2] = data;
+      sensor_raw_data[2] = data &0xFFFF;
       break;
     case SENSOR_ADC_4:
       sensors[3] = data;
+      sensor_raw_data[3] = data &0xFFFF;
+      advertizer_update_data(id++,&sensor_raw_data[0],4);
       break;
   }
 }

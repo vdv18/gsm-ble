@@ -77,7 +77,7 @@
         </option>
         <option>
           <name>OGLastSavedByProductVersion</name>
-          <state>7.80.4.12487</state>
+          <state>7.80.2.11970</state>
         </option>
         <option>
           <name>GeneralEnableMisra</name>
@@ -89,7 +89,7 @@
         </option>
         <option>
           <name>OGChipSelectEditMenu</name>
-          <state>nrf52832_xxaa	NordicSemi nrf52832_xxaa</state>
+          <state>nRF52832-xxAA	NordicSemi nRF52832-xxAA</state>
         </option>
         <option>
           <name>GenLowLevelInterface</name>
@@ -136,7 +136,7 @@
         </option>
         <option>
           <name>OGUseCmsisDspLib</name>
-          <state>1</state>
+          <state>0</state>
         </option>
         <option>
           <name>GRuntimeLibThreads</name>
@@ -149,7 +149,7 @@
         </option>
         <option>
           <name>GFPUDeviceSlave</name>
-          <state>nrf52832_xxaa	NordicSemi nrf52832_xxaa</state>
+          <state>nRF52832-xxAA	NordicSemi nRF52832-xxAA</state>
         </option>
         <option>
           <name>FPU2</name>
@@ -2146,6 +2146,18 @@
   </group>
   <group>
     <name>sources</name>
+    <file>
+      <name>$PROJ_DIR$\..\sources\advertizer.c</name>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\sources\advertizer.h</name>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\sources\central.c</name>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\sources\central.h</name>
+    </file>
     <file>
       <name>$PROJ_DIR$\..\sources\iar_startup_nrf52.s</name>
     </file>
