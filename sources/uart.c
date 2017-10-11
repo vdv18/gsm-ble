@@ -15,15 +15,28 @@ void UARTE0_UART0_IRQHandler()
   if(NRF_UARTE0->EVENTS_TXDRDY){
     NRF_UARTE0->RXD.PTR = (uint32_t)buffer_rx;
     NRF_UARTE0->RXD.MAXCNT = sizeof(buffer_rx);
+    NRF_UARTE0->EVENTS_TXDRDY = 0;
     NRF_UARTE0->TASKS_STARTRX = 1;
-    
   }
   if(NRF_UARTE0->EVENTS_RXTO){
     handler(UART_RECV_MSG,buffer_rx,NRF_UARTE0->RXD.AMOUNT);
     NRF_UARTE0->RXD.PTR = (uint32_t)buffer_rx;
     NRF_UARTE0->RXD.MAXCNT = sizeof(buffer_rx);
+    NRF_UARTE0->EVENTS_RXTO = 0;
     NRF_UARTE0->TASKS_STARTRX = 1;
   }
+  if(NRF_UARTE0->EVENTS_ENDRX){
+    handler(UART_RECV_MSG,buffer_rx,NRF_UARTE0->RXD.AMOUNT);
+    NRF_UARTE0->RXD.PTR = (uint32_t)buffer_rx;
+    NRF_UARTE0->RXD.MAXCNT = sizeof(buffer_rx);
+    NRF_UARTE0->EVENTS_RXDRDY = 0;
+    NRF_UARTE0->TASKS_STARTRX = 1;
+  }
+  NRF_UARTE0->EVENTS_ENDRX = 0;
+  NRF_UARTE0->EVENTS_ENDTX = 0;
+  NRF_UARTE0->EVENTS_RXDRDY = 0;
+  NRF_UARTE0->EVENTS_TXDRDY = 0;
+  NRF_UARTE0->EVENTS_TXSTOPPED = 0;
 }
 //typedef struct {
 //  __IO uint32_t  PTR;                               /*!< Data pointer                                                          */
@@ -47,18 +60,22 @@ void uart_send(uint8_t *data, int len)
   NRF_UARTE0->TASKS_STARTTX = 1;
 }
 
-void uart_init(uart_cb_t cb)
+void uart_cb(uart_cb_t cb)
 {
   if(cb)
     handler = cb;
+}
+
+void uart_init()
+{
   
   NRF_UARTE0->BAUDRATE = UART_BAUDRATE_BAUDRATE_Baud9600; // 115200
   NRF_UARTE0->CONFIG  = 0x00; // No parity No HW flow control
   NRF_UARTE0->PSEL.RXD = 3; // 0x02
   NRF_UARTE0->PSEL.TXD = 2; // 0x03
   //NRF_UARTE0->INTENSET = (1<<4) | (1<<8) | (1<<9) | (1<<17);
-  NRF_UARTE0->INTENSET = (1<<8) | (1<<17);
-  NRF_UARTE0->ENABLE = 4; // Enable UART
+  NRF_UARTE0->INTENSET = UART_INTENSET_RXTO_Msk | UART_INTENSET_ERROR_Msk | UART_INTENSET_TXDRDY_Msk | UART_INTENSET_RXDRDY_Msk;
+  NRF_UARTE0->ENABLE = 8; // Enable UART
   NRF_UARTE0->TASKS_FLUSHRX = 1;
   NVIC_EnableIRQ(UARTE0_UART0_IRQn);
 }
