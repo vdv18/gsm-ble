@@ -4,12 +4,14 @@
 #include "sensors.h"
 #include "modem.h"
 #include "led.h"
+#include "charger.h"
 
 #include "central.h"
 #include "advertizer.h"
 
 #include <stdlib.h>
 
+static int central = 1;
 
 void assertion_handler(uint32_t id, uint32_t pc, uint32_t info)
 {
@@ -35,7 +37,6 @@ uint32_t sd_init()
   
   return NRF_SUCCESS;
 }
-static int central = 0;
 void SWI2_EGU2_IRQHandler()
 {
   if(central)
@@ -71,7 +72,8 @@ void sensors_handler( enum sensors_index_e sensor, uint64_t data )
     case SENSOR_ADC_4:
       sensors[3] = data;
       sensor_raw_data[3] = data &0xFFFF;
-      advertizer_update_data(id++,&sensor_raw_data[0],4);
+      if(!central)
+        advertizer_update_data(id++,&sensor_raw_data[0],4);
       break;
   }
 }
@@ -104,10 +106,16 @@ void main()
   led_init();
 //  led_set(LED_1,LED_MODE_FAST_BLINK);
 //  led_set(LED_2,LED_MODE_BLINK);
-//  led_set(LED_3,LED_MODE_ON);
-  //modem_init(modem_handler);
-  modem_handler(MODEM_DISABLED);
+  modem_init(modem_handler);
+//  if(central)
+//    modem_handler(MODEM_INITIALIZED);
+//  else
+//    modem_handler(MODEM_DISABLED);
   while(1){
+    if(CHARGER_STATE_YES == charger_state())
+    {
+      led_set(LED_3,LED_MODE_ON);
+    }
     if (ready)
     {
         power_manage();

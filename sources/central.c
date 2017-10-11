@@ -2,10 +2,16 @@
 #include "nrf.h"
 #include "ble.h"
 #include "nrf_sdm.h"
-
+#include "led.h"
 #include "app_util.h"
 #include "app_timer.h"
 
+#define MAX_DATA_SIZE (60)
+mac_data_t mac_data_list[MAX_DATA_SIZE];
+int mac_data_size = 0;
+
+static app_timer_t timer;
+static app_timer_id_t timer_id = &timer;
 #define MIN_CONNECTION_INTERVAL   (7.5*1000/1250)      /**< Determines minimum connection interval in milliseconds. */
 #define MAX_CONNECTION_INTERVAL   (30*1000/1250)       /**< Determines maximum connection interval in milliseconds. */
 #define SLAVE_LATENCY             0                                     /**< Determines slave latency in terms of connection events. */
@@ -173,6 +179,11 @@ static uint32_t conn_cnt = 0;
 static uint32_t disconn_cnt = 0; 
 static uint8_array_t adv_data;
 static uint8_array_t adv_type;
+
+static void central_timer_led_off(void * p_context)
+{
+  led_set(LED_1,LED_MODE_OFF);
+}
 static void ble_handler()
 {
   uint32_t ret_code = 0;
@@ -189,20 +200,6 @@ static void ble_handler()
   
   switch(p_ble_evt->header.evt_id)
   {
-    case BLE_GAP_EVT_CONNECTED:
-      {
-        connected = 1;
-        conn_cnt++;
-      }
-      break;
-    case BLE_GAP_EVT_DISCONNECTED:
-      {
-        connected = 0;
-        connect = 1;
-        disconn_cnt++;
-        sd_ble_gap_scan_start(&m_scan_params); 
-      }
-      break;
     case BLE_GAP_EVT_ADV_REPORT:
       {
         uint8_t conn_cfg_tag;
@@ -210,20 +207,45 @@ static void ble_handler()
         ble_gap_addr_t const * p_peer_addr  = &p_gap_evt->params.adv_report.peer_addr;
         adv_data.p_data = (uint8_t *)p_gap_evt->params.adv_report.data;
         adv_data.size   = p_gap_evt->params.adv_report.dlen;
-        if(adv_report_parse(BLE_GAP_AD_TYPE_COMPLETE_LOCAL_NAME,&adv_data,&adv_type) == NRF_SUCCESS) 
-          connect = 1;
-        else if(adv_report_parse(BLE_GAP_AD_TYPE_SHORT_LOCAL_NAME,&adv_data,&adv_type) == NRF_SUCCESS)
-          connect = 1;
-        else 
-          connect = 0;
-        if(connect)
+        if((adv_report_parse(BLE_GAP_AD_TYPE_COMPLETE_LOCAL_NAME,&adv_data,&adv_type) == NRF_SUCCESS) 
+           ||
+           (adv_report_parse(BLE_GAP_AD_TYPE_SHORT_LOCAL_NAME,&adv_data,&adv_type) == NRF_SUCCESS))
         {
-          sd_ble_gap_connect(p_peer_addr,&m_scan_params,&m_connection_param,1);
-          connect = 0;
+          if(memcmp(adv_type.p_data,"GB0001",6) == 0)
+          {
+            int found = 0;
+            mac_data_t *item = 0;
+            adv_report_count++;
+            for(int i=0;i<mac_data_size;i++)
+            {
+              if(memcmp(p_peer_addr->addr,mac_data_list[i].mac,6) == 0)
+              {
+                found = 1;
+                item = &mac_data_list[i];
+              }
+            }
+            if(!item)
+            {
+              if(mac_data_size<MAX_DATA_SIZE)
+              {
+                item = &mac_data_list[mac_data_size++];
+                memcpy(item->mac,p_peer_addr->addr,6);
+              }
+            }
+            if(item)
+            {
+              item->timestamp++;
+              item->id = (uint16_t)adv_data.p_data[13]<<8 | (uint16_t)adv_data.p_data[14];
+              item->data[0] = (uint16_t)adv_data.p_data[15]<<8 | (uint16_t)adv_data.p_data[16];
+              item->data[1] = (uint16_t)adv_data.p_data[17]<<8 | (uint16_t)adv_data.p_data[18];
+              item->data[2] = (uint16_t)adv_data.p_data[19]<<8 | (uint16_t)adv_data.p_data[20];
+              item->data[3] = (uint16_t)adv_data.p_data[21]<<8 | (uint16_t)adv_data.p_data[22];
+              led_set(LED_1,LED_MODE_ON);
+              app_timer_start(timer_id,APP_TIMER_TICKS(10),NULL);
+            }
+          }
         }
-        
       }
-      adv_report_count++;
       break;
   }
   
@@ -231,6 +253,11 @@ static void ble_handler()
 
 void central_init()
 {
+  if(NRF_SUCCESS != app_timer_create(&timer_id,APP_TIMER_MODE_REPEATED,central_timer_led_off))
+  {
+    while(1);
+  }
+  
   ble_central_init();
 }
 void central_handler()

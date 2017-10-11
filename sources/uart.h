@@ -1,8 +1,17 @@
 #ifndef __UART_H__
 #define __UART_H__
 
+#include <stdint.h>
 
-void uart_init();
+typedef enum uart_state_e{
+  UART_RECV_MSG,
+  UART_SEND_MSG_COMPLETE,
+} uart_state_t;
+
+typedef void (*uart_cb_t)(uart_state_t state, uint8_t *data, int len);
+
+void uart_init(uart_cb_t cb);
+void uart_send(uint8_t *data, int len);
 void uart_deinit();
 
 

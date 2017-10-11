@@ -1,26 +1,70 @@
 #include "uart.h"
 #include "nrf.h"
 #include "app_timer.h"
+
+static uint8_t buffer_tx[0xFF];
+static uint8_t buffer_rx[0xFF];
 static app_timer_t timer;
 static app_timer_id_t timer_id = &timer;
+
+void default_handler(uart_state_t state, uint8_t *data, int len);
+static uart_cb_t handler = default_handler;
+
 void UARTE0_UART0_IRQHandler()
 {
-  if(NRF_UART0->EVENTS_TXDRDY){
+  if(NRF_UARTE0->EVENTS_TXDRDY){
+    NRF_UARTE0->RXD.PTR = (uint32_t)buffer_rx;
+    NRF_UARTE0->RXD.MAXCNT = sizeof(buffer_rx);
+    NRF_UARTE0->TASKS_STARTRX = 1;
     
   }
+  if(NRF_UARTE0->EVENTS_RXTO){
+    handler(UART_RECV_MSG,buffer_rx,NRF_UARTE0->RXD.AMOUNT);
+    NRF_UARTE0->RXD.PTR = (uint32_t)buffer_rx;
+    NRF_UARTE0->RXD.MAXCNT = sizeof(buffer_rx);
+    NRF_UARTE0->TASKS_STARTRX = 1;
+  }
+}
+//typedef struct {
+//  __IO uint32_t  PTR;                               /*!< Data pointer                                                          */
+//  __IO uint32_t  MAXCNT;                            /*!< Maximum number of bytes in receive buffer                             */
+//  __I  uint32_t  AMOUNT;                            /*!< Number of bytes transferred in the last transaction                   */
+//} UARTE_RXD_Type;
+//
+//typedef struct {
+//  __IO uint32_t  PTR;                               /*!< Data pointer                                                          */
+//  __IO uint32_t  MAXCNT;                            /*!< Maximum number of bytes in transmit buffer                            */
+//  __I  uint32_t  AMOUNT;                            /*!< Number of bytes transferred in the last transaction                   */
+//} UARTE_TXD_Type;
+
+void uart_send(uint8_t *data, int len)
+{
+  //NRF_UARTE0->TASKS_STARTRX = 1;
+  NRF_UARTE0->TASKS_STOPRX = 1;
+  memcpy(buffer_tx,data,len);
+  NRF_UARTE0->TXD.PTR = (uint32_t)buffer_tx;
+  NRF_UARTE0->TXD.MAXCNT = len;
+  NRF_UARTE0->TASKS_STARTTX = 1;
 }
 
-
-void uart_init()
+void uart_init(uart_cb_t cb)
 {
-  NRF_UART0->BAUDRATE = 0x01D7E000; // 115200
-  NRF_UART0->CONFIG  = 0x00; // No parity No HW flow control
-  NRF_UART0->PSELRXD = 2; // 0x02
-  NRF_UART0->PSELTXD = 3; // 0x03
-  NRF_UART0->INTENSET = (1<<4) | (1<<8) | (1<<9) | (1<<17);
-  NRF_UART0->ENABLE = 4; // Enable UART
+  if(cb)
+    handler = cb;
+  
+  NRF_UARTE0->BAUDRATE = UART_BAUDRATE_BAUDRATE_Baud9600; // 115200
+  NRF_UARTE0->CONFIG  = 0x00; // No parity No HW flow control
+  NRF_UARTE0->PSEL.RXD = 3; // 0x02
+  NRF_UARTE0->PSEL.TXD = 2; // 0x03
+  //NRF_UARTE0->INTENSET = (1<<4) | (1<<8) | (1<<9) | (1<<17);
+  NRF_UARTE0->INTENSET = (1<<8) | (1<<17);
+  NRF_UARTE0->ENABLE = 4; // Enable UART
+  NRF_UARTE0->TASKS_FLUSHRX = 1;
+  NVIC_EnableIRQ(UARTE0_UART0_IRQn);
 }
 
 void uart_deinit()
 {
 }
+
+void default_handler(uart_state_t state, uint8_t *data, int len){};
