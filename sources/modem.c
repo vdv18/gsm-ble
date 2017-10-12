@@ -125,6 +125,7 @@ static void modem_handler(void * p_context)
       }
       if(GSM_STATUS() > 0)
       {
+        timeout_gsm = 50;
         modem_state = STATE_CHECK_AT_RSP;
       }
       app_timer_start(timer_id,APP_TIMER_TICKS(100),NULL);
@@ -188,8 +189,8 @@ void modem_init(modem_handler_t _handler)
                              | ((uint32_t)0 << GPIO_PIN_CNF_SENSE_Pos);
   NRF_P0->PIN_CNF[6] = ((uint32_t)GPIO_PIN_CNF_DIR_Output << GPIO_PIN_CNF_DIR_Pos)
                              | ((uint32_t)0 << GPIO_PIN_CNF_INPUT_Pos)
-                             | ((uint32_t)0 << GPIO_PIN_CNF_PULL_Pos)
-                             | ((uint32_t)GPIO_PIN_CNF_DRIVE_S0S1 << GPIO_PIN_CNF_DRIVE_Pos)
+                             | ((uint32_t)GPIO_PIN_CNF_PULL_Pullup << GPIO_PIN_CNF_PULL_Pos)
+                             | ((uint32_t)GPIO_PIN_CNF_DRIVE_H0D1 << GPIO_PIN_CNF_DRIVE_Pos)
                              | ((uint32_t)0 << GPIO_PIN_CNF_SENSE_Pos);
   POWER_KEY_OFF();
   GSM_OFF();

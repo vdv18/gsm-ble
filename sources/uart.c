@@ -14,7 +14,7 @@ void UARTE0_UART0_IRQHandler()
 {
   if(NRF_UARTE0->EVENTS_ERROR){
     NRF_UARTE0->EVENTS_ERROR = 0;
-    (void)NRF_UARTE0->ERRORSRC;
+    NRF_UARTE0->ERRORSRC = 0;
   }
   if(NRF_UARTE0->EVENTS_TXDRDY){
     NRF_UARTE0->RXD.PTR = (uint32_t)buffer_rx;
