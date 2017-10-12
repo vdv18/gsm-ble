@@ -13,7 +13,8 @@ static modem_handler_t handler = default_handler;
 static app_timer_t timer;
 static app_timer_id_t timer_id = &timer;
 
-enum mode_state_int_e {
+enum modem_state_int_e {
+  STATE_PREPARE           =0xFE,
   STATE_INIT              =0x00,
   STATE_PWR_KEY_ON        =0x01,
   STATE_PWR_KEY_OFF       =0x02,
@@ -22,7 +23,21 @@ enum mode_state_int_e {
   STATE_WORK              =0x05,
   STATE_NO_WORK           =0xFF,
 };
-static enum mode_state_int_e modem_state = STATE_INIT;
+static enum modem_state_int_e modem_state = STATE_INIT;
+
+enum modem_request_state_e {
+  REQUEST_IDLE            =0x00,
+  REQUEST_SEND            =0x01,
+  REQUEST_RESPONSE        =0x02,
+};
+static enum modem_request_state_e modem_request_state = REQUEST_IDLE;
+
+struct modem_request_s {
+  uint8_t *message;
+  uint16_t*message_len;
+};
+
+
 void uart_cb_init(uart_state_t state, uint8_t *data, int len);
 void uart_cb_work(uart_state_t state, uint8_t *data, int len);
 
@@ -35,6 +50,8 @@ void uart_cb_init(uart_state_t state, uint8_t *data, int len)
       if(strstr(data,"OK")!=0)
       {
         modem_state = STATE_WORK;
+        app_timer_stop(timer_id);
+        app_timer_start(timer_id,APP_TIMER_TICKS(100),NULL);
         uart_cb(uart_cb_work);
       }
       break;
@@ -49,8 +66,8 @@ void uart_cb_work(uart_state_t state, uint8_t *data, int len)
     case UART_RECV_MSG:
       if(strstr(data,"OK")!=0)
       {
-        modem_state = STATE_WORK;
-        uart_cb(uart_cb_work);
+        memset(data,0,strlen(data));
+        modem_request_state = REQUEST_RESPONSE;
       }
       break;
     case UART_SEND_MSG_COMPLETE:
@@ -63,7 +80,7 @@ static void modem_handler(void * p_context)
   {
     case STATE_CHECK_AT_RSP:
     case STATE_WORK:
-      if(GSM_STATUS() == 0)
+      if(0)if(GSM_STATUS() == 0)
       {
         modem_state = STATE_INIT;
         GSM_OFF();
@@ -75,6 +92,12 @@ static void modem_handler(void * p_context)
   }
   switch(modem_state)
   {
+    case STATE_PREPARE:
+      modem_state = STATE_INIT;
+      GSM_OFF();
+      POWER_KEY_OFF();
+      app_timer_start(timer_id,APP_TIMER_TICKS(1000),NULL);
+      break;
     case STATE_INIT:app_timer_start(timer_id,APP_TIMER_TICKS(1000),NULL);
       modem_state=STATE_PWR_KEY_ON;
       GSM_ON();
@@ -94,8 +117,10 @@ static void modem_handler(void * p_context)
       if(timeout_gsm) timeout_gsm--;
       else
       {
+        timeout_gsm = 50;
         handler(MODEM_DISABLED);
         modem_state = STATE_NO_WORK;
+        app_timer_start(timer_id,APP_TIMER_TICKS(100),NULL);
         break;
       }
       if(GSM_STATUS() > 0)
@@ -108,23 +133,38 @@ static void modem_handler(void * p_context)
       {
         int ok = 0;
         uart_send("AT\r\n",4);
-        
-        if(ok)
-        {
-          modem_state = STATE_WORK;
-          break;
-        }
         app_timer_start(timer_id,APP_TIMER_TICKS(5000),NULL);
       }
       break;
     case STATE_WORK:
       {
+        static uint8_t send = 0;
+        static uint8_t message[0x400];
         // Work
+        switch(modem_request_state){
+          case REQUEST_IDLE:{
+              if(send)
+              {
+                send = 0;
+                sprintf(&message[strlen(message)],"\r\n");
+                uart_send(message,strlen(message));
+                modem_request_state = REQUEST_SEND;
+              }
+            }break;
+          case REQUEST_SEND:{
+            }break;
+          case REQUEST_RESPONSE:{
+              memset(message,0,sizeof(message));
+              modem_request_state = REQUEST_IDLE;
+            }break;
+        };
+        app_timer_start(timer_id,APP_TIMER_TICKS(10),NULL);
       }
       break;
     case STATE_NO_WORK:
       {
         // Work
+        app_timer_start(timer_id,APP_TIMER_TICKS(10),NULL);
       }
       break;
   }
