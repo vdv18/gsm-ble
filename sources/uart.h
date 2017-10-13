@@ -13,6 +13,7 @@ typedef void (*uart_cb_t)(uart_state_t state, uint8_t *data, int len);
 void uart_init();
 void uart_cb(uart_cb_t cb);
 void uart_send(uint8_t *data, int len);
+void uart_send_buffer(uint8_t *data, int len);
 void uart_deinit();
 
 
