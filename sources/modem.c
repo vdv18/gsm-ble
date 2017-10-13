@@ -1,26 +1,58 @@
 #include "modem.h"
 #include "app_timer.h"
-#include "uart.h"
+#include "sim800c.h"
 
-#define POWER_KEY_ON()  {NRF_P0->OUTSET = 1<<5;}
-#define POWER_KEY_OFF() {NRF_P0->OUTCLR = 1<<5;}
-#define GSM_ON()        {NRF_P0->OUTCLR = 1<<6;}
-#define GSM_OFF()       {NRF_P0->OUTSET = 1<<6;}
-#define GSM_STATUS()    ((NRF_P0->IN & 1<<4) > 0)
-
-static void default_handler(modem_state_t state);
-static modem_handler_t handler = default_handler;
+static void sim800c_callback(sim800c_cmd_t cmd, sim800c_resp_t resp, char *msg, int len);
+static void default_handler(modem_state_t state){};
+static modem_handler_t callback = default_handler;
 static app_timer_t timer;
 static app_timer_id_t timer_id = &timer;
 
+typedef struct command_list_s {
+  sim800c_cmd_t cmd;
+  void *param;
+} command_list_t;
+//struct sapbr_param_s {
+//  uint8_t cmd_type;
+//  uint8_t cid;
+//  uint8_t param_tag[0x10];
+//  uint8_t param_value[0x10];
+//};
+const struct sapbr_param_s sapbr_contype = {
+  .cmd_type = 3,
+  .cid = 1,
+  .param_tag = "Contype",
+  .param_value = "GPRS"
+};
+const struct sapbr_param_s sapbr_apn = {
+  .cmd_type = 3,
+  .cid = 1,
+  .param_tag = "APN",
+  .param_value = "Beeline"
+};
+const struct sapbr_param_s sapbr_open_gprs_context = {
+  .cmd_type = 1,
+  .cid = 1,
+};
+const struct sapbr_param_s sapbr_query_gprs_context = {
+  .cmd_type = 1,
+  .cid = 1,
+};
+
+static const command_list_t cmd_list_init[] = {
+  { SIM800C_CMD_SAPBR, (void*)&sapbr_contype },
+  { SIM800C_CMD_SAPBR, (void*)&sapbr_apn },
+  { SIM800C_CMD_SAPBR, (void*)&sapbr_open_gprs_context },
+  { SIM800C_CMD_SAPBR, (void*)&sapbr_query_gprs_context },
+};
+
+
 enum modem_state_int_e {
-  STATE_PREPARE           =0xFE,
   STATE_INIT              =0x00,
-  STATE_PWR_KEY_ON        =0x01,
-  STATE_PWR_KEY_OFF       =0x02,
-  STATE_CHECK_STATUS      =0x03,
-  STATE_CHECK_AT_RSP      =0x04,
-  STATE_WORK              =0x05,
+  STATE_REINIT,
+  STATE_WAIT_INIT,
+  STATE_WORK_INIT,
+  STATE_WORK,
   STATE_NO_WORK           =0xFF,
 };
 static enum modem_state_int_e modem_state = STATE_INIT;
@@ -37,180 +69,106 @@ struct modem_request_s {
   uint16_t*message_len;
 };
 
-
-void uart_cb_init(uart_state_t state, uint8_t *data, int len);
-void uart_cb_work(uart_state_t state, uint8_t *data, int len);
-
-
-void uart_cb_init(uart_state_t state, uint8_t *data, int len)
+static void sim800c_callback(sim800c_cmd_t cmd, sim800c_resp_t resp, char *msg, int len)
 {
-  switch(state)
+  switch(cmd)
   {
-    case UART_RECV_MSG:
-      if(strstr(data,"OK")!=0)
+    case SIM800C_CMD_SAPBR:
       {
-        modem_state = STATE_WORK;
-        app_timer_stop(timer_id);
-        app_timer_start(timer_id,APP_TIMER_TICKS(100),NULL);
-        uart_cb(uart_cb_work);
+        
       }
       break;
-    case UART_SEND_MSG_COMPLETE:
+    case SIM800C_CMD_NOP:
+      {
+        switch(resp)
+        {
+          case SIM800C_STATUS_ENABLE:
+            //modem_state = STATE_NO_WORK;
+            break;
+          case SIM800C_STATUS_DISABLE:
+            modem_state = STATE_NO_WORK;
+            break;
+        }
+      }
+      break;
+    case SIM800C_CMD_POWER_ON:
+      {
+        switch(resp)
+        {
+          case SIM800C_POWER_ON:
+            modem_state = STATE_WORK_INIT;
+            break;
+          default:
+            modem_state = STATE_NO_WORK;
+            break;
+        }
+      }
+      break;
+    case SIM800C_CMD_POWER_OFF:
+    case SIM800C_CMD_POWER_DOWN:
       break;
   }
 }
-void uart_cb_work(uart_state_t state, uint8_t *data, int len)
-{
-  switch(state)
-  {
-    case UART_RECV_MSG:
-      if(strstr(data,"OK")!=0)
-      {
-        memset(data,0,strlen(data));
-        modem_request_state = REQUEST_RESPONSE;
-      }
-      break;
-    case UART_SEND_MSG_COMPLETE:
-      break;
-  }
-}
+
 static void modem_handler(void * p_context)
 {
   switch(modem_state)
   {
-    case STATE_CHECK_AT_RSP:
-    case STATE_WORK:
-      if(0)if(GSM_STATUS() == 0)
+    case STATE_REINIT:
       {
+        sim800c_cmd_send(SIM800C_CMD_POWER_OFF, NULL);
         modem_state = STATE_INIT;
-        GSM_OFF();
-        POWER_KEY_OFF();
-        app_timer_start(timer_id,APP_TIMER_TICKS(1000),NULL);
-        return;
       }
       break;
-  }
-  switch(modem_state)
-  {
-    case STATE_PREPARE:
-      modem_state = STATE_INIT;
-      GSM_OFF();
-      POWER_KEY_OFF();
-      app_timer_start(timer_id,APP_TIMER_TICKS(1000),NULL);
-      break;
-    case STATE_INIT:app_timer_start(timer_id,APP_TIMER_TICKS(1000),NULL);
-      modem_state=STATE_PWR_KEY_ON;
-      GSM_ON();
-      break;
-    case STATE_PWR_KEY_ON:app_timer_start(timer_id,APP_TIMER_TICKS(2000),NULL);
-      modem_state=STATE_PWR_KEY_OFF;
-      GSM_ON();
-      POWER_KEY_ON();
-      break;
-    case STATE_PWR_KEY_OFF:app_timer_start(timer_id,APP_TIMER_TICKS(2500),NULL);
-      modem_state=STATE_CHECK_STATUS;
-      POWER_KEY_OFF();
-      break;
-    case STATE_CHECK_STATUS:
-      static int timeout_gsm = 50;
-      
-      if(timeout_gsm) timeout_gsm--;
-      else
+    case STATE_INIT:
       {
-        timeout_gsm = 50;
-        handler(MODEM_DISABLED);
-        modem_state = STATE_NO_WORK;
-        app_timer_start(timer_id,APP_TIMER_TICKS(100),NULL);
-        break;
+        sim800c_cmd_send(SIM800C_CMD_POWER_ON, NULL);
+        modem_state = STATE_WAIT_INIT;
       }
-      if(GSM_STATUS() > 0)
-      {
-        timeout_gsm = 50;
-        modem_state = STATE_CHECK_AT_RSP;
-      }
-      app_timer_start(timer_id,APP_TIMER_TICKS(100),NULL);
       break;
-    case STATE_CHECK_AT_RSP:
+    case STATE_WAIT_INIT:
       {
-        int ok = 0;
-        uart_send("AT\r\n",4);
-        app_timer_start(timer_id,APP_TIMER_TICKS(5000),NULL);
+        //sim800c_cmd_send(SIM800C_CMD_POWER_ON, NULL);
+      }
+      break;
+    case STATE_WORK_INIT:
+      {
+        sim800c_cmd_send(SIM800C_CMD_SAPBR, (void*)&sapbr_contype);
+        modem_state = STATE_WORK;
       }
       break;
     case STATE_WORK:
       {
-        static uint8_t send = 0;
-        static uint8_t message[0x400];
-        // Work
-        switch(modem_request_state){
-          case REQUEST_IDLE:{
-              if(send)
-              {
-                send = 0;
-                sprintf(&message[strlen(message)],"\r\n");
-                uart_send(message,strlen(message));
-                modem_request_state = REQUEST_SEND;
-              }
-            }break;
-          case REQUEST_SEND:{
-            }break;
-          case REQUEST_RESPONSE:{
-              memset(message,0,sizeof(message));
-              modem_request_state = REQUEST_IDLE;
-            }break;
-        };
-        app_timer_start(timer_id,APP_TIMER_TICKS(10),NULL);
       }
       break;
     case STATE_NO_WORK:
       {
-        // Work
-        app_timer_start(timer_id,APP_TIMER_TICKS(10),NULL);
       }
       break;
   }
-  
+  app_timer_start(timer_id,APP_TIMER_TICKS(10),NULL);
 }
 
 
 void modem_init(modem_handler_t _handler)
 {
-  POWER_KEY_OFF();
-  GSM_OFF();
-  NRF_P0->PIN_CNF[4] = ((uint32_t)GPIO_PIN_CNF_DIR_Input << GPIO_PIN_CNF_DIR_Pos)
-                             | ((uint32_t)0 << GPIO_PIN_CNF_INPUT_Pos)
-                             | ((uint32_t)0 << GPIO_PIN_CNF_PULL_Pos)
-                             | ((uint32_t)GPIO_PIN_CNF_DRIVE_S0S1 << GPIO_PIN_CNF_DRIVE_Pos)
-                             | ((uint32_t)0 << GPIO_PIN_CNF_SENSE_Pos);
-  NRF_P0->PIN_CNF[5] = ((uint32_t)GPIO_PIN_CNF_DIR_Output << GPIO_PIN_CNF_DIR_Pos)
-                             | ((uint32_t)0 << GPIO_PIN_CNF_INPUT_Pos)
-                             | ((uint32_t)0 << GPIO_PIN_CNF_PULL_Pos)
-                             | ((uint32_t)GPIO_PIN_CNF_DRIVE_S0S1 << GPIO_PIN_CNF_DRIVE_Pos)
-                             | ((uint32_t)0 << GPIO_PIN_CNF_SENSE_Pos);
-  NRF_P0->PIN_CNF[6] = ((uint32_t)GPIO_PIN_CNF_DIR_Output << GPIO_PIN_CNF_DIR_Pos)
-                             | ((uint32_t)0 << GPIO_PIN_CNF_INPUT_Pos)
-                             | ((uint32_t)GPIO_PIN_CNF_PULL_Pullup << GPIO_PIN_CNF_PULL_Pos)
-                             | ((uint32_t)GPIO_PIN_CNF_DRIVE_H0D1 << GPIO_PIN_CNF_DRIVE_Pos)
-                             | ((uint32_t)0 << GPIO_PIN_CNF_SENSE_Pos);
-  POWER_KEY_OFF();
-  GSM_OFF();
   
   if(NRF_SUCCESS != app_timer_create(&timer_id,APP_TIMER_MODE_SINGLE_SHOT,modem_handler))
   {
     while(1);
   }
   app_timer_start(timer_id,APP_TIMER_TICKS(1000),NULL);
-  handler = _handler;
-  uart_init();
-  uart_cb(uart_cb_init);
+  callback = _handler;
+  sim800c_init();
+  sim800c_set_cb(sim800c_callback);
+//  for(int i=0;i<sizeof(cmd_list_init)/sizeof(command_list_t);i++)
+//  {
+//    sim800c_cmd_send(cmd_list_init[0].cmd, cmd_list_init[i].param);
+//  }
 }
+
 void modem_deinit(void)
 {
-  handler = default_handler;
-  uart_deinit();
-}
-
-
-static void default_handler(modem_state_t state)
-{
+  callback = default_handler;
+  sim800c_deinit();
 }

@@ -2195,6 +2195,12 @@
       <name>$PROJ_DIR$\..\sources\sensors.h</name>
     </file>
     <file>
+      <name>$PROJ_DIR$\..\sources\sim800c.c</name>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\sources\sim800c.h</name>
+    </file>
+    <file>
       <name>$PROJ_DIR$\..\sources\system_nrf52.c</name>
     </file>
     <file>
