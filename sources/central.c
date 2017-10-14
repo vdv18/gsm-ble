@@ -6,9 +6,8 @@
 #include "app_util.h"
 #include "app_timer.h"
 
-#define MAX_DATA_SIZE (60)
-mac_data_t mac_data_list[MAX_DATA_SIZE];
-int mac_data_size = 0;
+mac_data_t central_mac_data_list[MAC_DATA_LIST_SIZE];
+int central_mac_data_size = 0;
 
 static app_timer_t timer;
 static app_timer_id_t timer_id = &timer;
@@ -211,24 +210,26 @@ static void ble_handler()
            ||
            (adv_report_parse(BLE_GAP_AD_TYPE_SHORT_LOCAL_NAME,&adv_data,&adv_type) == NRF_SUCCESS))
         {
-          if(memcmp(adv_type.p_data,"GB0001",6) == 0)
+          if(memcmp(adv_type.p_data,"GB00",4) == 0)
+          if(adv_type.p_data[4] >= '0' && adv_type.p_data[4] <= '9')
+          if(adv_type.p_data[5] >= '0' && adv_type.p_data[5] <= '9')
           {
             int found = 0;
             mac_data_t *item = 0;
             adv_report_count++;
-            for(int i=0;i<mac_data_size;i++)
+            for(int i=0;i<central_mac_data_size;i++)
             {
-              if(memcmp(p_peer_addr->addr,mac_data_list[i].mac,6) == 0)
+              if(memcmp(p_peer_addr->addr,central_mac_data_list[i].mac,6) == 0)
               {
                 found = 1;
-                item = &mac_data_list[i];
+                item = &central_mac_data_list[i];
               }
             }
             if(!item)
             {
-              if(mac_data_size<MAX_DATA_SIZE)
+              if(central_mac_data_size<MAC_DATA_LIST_SIZE)
               {
-                item = &mac_data_list[mac_data_size++];
+                item = &central_mac_data_list[central_mac_data_size++];
                 memcpy(item->mac,p_peer_addr->addr,6);
               }
             }
@@ -240,6 +241,7 @@ static void ble_handler()
               item->data[1] = (uint16_t)adv_data.p_data[17]<<8 | (uint16_t)adv_data.p_data[18];
               item->data[2] = (uint16_t)adv_data.p_data[19]<<8 | (uint16_t)adv_data.p_data[20];
               item->data[3] = (uint16_t)adv_data.p_data[21]<<8 | (uint16_t)adv_data.p_data[22];
+              memcpy(item->name,adv_type.p_data,adv_type.size);
               led_set(LED_1,LED_MODE_ON);
               app_timer_start(timer_id,APP_TIMER_TICKS(10),NULL);
             }

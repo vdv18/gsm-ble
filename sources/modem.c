@@ -291,9 +291,12 @@ static void modem_handler(void * p_context)
         if(modem_status & SAPBR_READY)
         {
           modem_state = STATE_WORK;
-          httpdata_param.data = (uint8_t *)test_data;
-          httpdata_param.data_len = strlen(test_data);
-          post_ready = 1;
+          if(0){ // Set example JSON request
+            httpdata_param.data = (uint8_t *)test_data;
+            httpdata_param.data_len = strlen(test_data);
+            post_ready = 0;
+          }
+          callback(MODEM_INITIALIZED);
           app_timer_start(timer_id,APP_TIMER_TICKS(2000),NULL);
           return;
         }
@@ -301,12 +304,13 @@ static void modem_handler(void * p_context)
       break;
     case STATE_WORK:
       {
-        
         if(modem_state_prev != modem_state)
         {
+          callback(MODEM_READY);
         }
         if(post_ready)
         {
+          callback(MODEM_PROCESSING);
           modem_state = STATE_WORK_SEND_POST_DATA;
         }
       }
@@ -422,6 +426,7 @@ static void modem_handler(void * p_context)
             ready = 1;
             post_ready = 0;
             post_data_state = 0;
+            callback(MODEM_SEND_COMPLETE);
             modem_state = STATE_WORK;
             break;
         };
@@ -443,6 +448,13 @@ static void modem_handler(void * p_context)
   app_timer_start(timer_id,APP_TIMER_TICKS(100),NULL);
 }
 
+
+void modem_send_json(uint8_t *data, int size)
+{
+  httpdata_param.data = (uint8_t *)data;
+  httpdata_param.data_len = size;
+  post_ready = 1;
+}
 
 void modem_init(modem_handler_t _handler)
 {
