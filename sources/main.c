@@ -60,6 +60,7 @@ static uint8_t sensors_ready;
 static uint16_t sensors[4];
 static uint16_t sensor_raw_data[4];
 static uint16_t sensor_converted_data[4];
+static uint16_t int_temp = 0;
 void sensors_handler( enum sensors_index_e sensor, uint16_t data )
 {
   switch(sensor)
@@ -93,6 +94,9 @@ void sensors_handler( enum sensors_index_e sensor, uint16_t data )
       sensor_converted_data[3] = data &0xFFFF;
       sensors_ready++;
       sensors_id_seq++;
+      break;
+    case SENSOR_INT_TEMP:
+      int_temp = data;
       break;
   }
 }
