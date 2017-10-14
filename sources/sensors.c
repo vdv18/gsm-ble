@@ -19,6 +19,10 @@ void sensors_set_converter(sensors_converter_t _converter)
 
 void SAADC_IRQHandler()
 {
+  if(NRF_SAADC->EVENTS_CALIBRATEDONE)
+  {
+    
+  }
   if(NRF_SAADC->RESULT.AMOUNT >= SAADC_DATA_CNT)
   {
     if(converter)
@@ -45,6 +49,7 @@ void SAADC_IRQHandler()
       handler(SENSOR_CONVERTED_4, saadc_data_conv[3]);
     }
     handler(SENSOR_ADC_4, saadc_data[3]);
+    NRF_SAADC->TASKS_STOP = 1;
     NRF_SAADC->EVENTS_DONE = 0;
     NRF_SAADC->EVENTS_END = 0;
     NRF_SAADC->EVENTS_RESULTDONE = 0;
@@ -84,10 +89,10 @@ void sensors_init(sensors_handler_t _handler)
   NRF_SAADC->CH[3].PSELP=8;
   NRF_SAADC->CH[3].PSELN=9;
   
-  NRF_SAADC->CH[0].CONFIG = (0<<0) | (0<<4) | (0<<8) | (0<<12) | (5<<16) | (0<<20) | (0<<24);
-  NRF_SAADC->CH[1].CONFIG = (0<<0) | (0<<4) | (0<<8) | (0<<12) | (5<<16) | (0<<20) | (0<<24);
-  NRF_SAADC->CH[2].CONFIG = (0<<0) | (0<<4) | (0<<8) | (0<<12) | (5<<16) | (0<<20) | (0<<24);
-  NRF_SAADC->CH[3].CONFIG = (0<<0) | (0<<4) | (0<<8) | (0<<12) | (5<<16) | (0<<20) | (0<<24);
+  NRF_SAADC->CH[0].CONFIG = (0<<0) | (0<<4) | (0<<8) | (0<<12) | (5<<16) | (0<<20) | (1<<24);
+  NRF_SAADC->CH[1].CONFIG = (0<<0) | (0<<4) | (0<<8) | (0<<12) | (5<<16) | (0<<20) | (1<<24);
+  NRF_SAADC->CH[2].CONFIG = (0<<0) | (0<<4) | (0<<8) | (0<<12) | (5<<16) | (0<<20) | (1<<24);
+  NRF_SAADC->CH[3].CONFIG = (0<<0) | (0<<4) | (0<<8) | (0<<12) | (5<<16) | (0<<20) | (1<<24);
   
   
   NRF_SAADC->RESULT.PTR = (uint32_t)&saadc_data;
@@ -95,10 +100,11 @@ void sensors_init(sensors_handler_t _handler)
   
   NRF_SAADC->INTENSET = (1<<1);
   
-  NRF_SAADC->SAMPLERATE = (2047)&0x7FF;
+  NRF_SAADC->SAMPLERATE = (1024)&0x7FF;
   NRF_SAADC->OVERSAMPLE = 0;
   NRF_SAADC->RESOLUTION = 2;
   NRF_SAADC->ENABLE = 1;
+  NRF_SAADC->TASKS_START = 1;
   
   NVIC_SetPriority(SAADC_IRQn, 7);
   NVIC_ClearPendingIRQ(SAADC_IRQn);

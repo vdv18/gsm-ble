@@ -459,6 +459,8 @@ void modem_send_json(uint8_t *data, int size)
 void modem_init(modem_handler_t _handler)
 {
   uint32_t temp =0;
+  if(_handler)
+    callback = _handler;
   if(NRF_SUCCESS != app_timer_create(&timer_id,APP_TIMER_MODE_SINGLE_SHOT,modem_handler))
   {
     while(1);
@@ -480,8 +482,6 @@ void modem_init(modem_handler_t _handler)
     sim800c_init();
     nrf_delay_ms(100);
     app_timer_start(timer_id,APP_TIMER_TICKS(1000),NULL);
-    if(_handler)
-      callback = _handler;
     sim800c_set_cb(sim800c_callback);
     callback(MODEM_INITIALIZING);
   }
