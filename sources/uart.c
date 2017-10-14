@@ -37,6 +37,8 @@ void UARTE0_UART0_IRQHandler()
     else
     {
       NRF_UART0->TASKS_STOPTX = 1;
+      buffer_tx[buffer_tx_cnt] = 0;
+      //printf("SEND: %s\r\n",buffer_tx);
       callback(UART_SEND_MSG_COMPLETE,buffer_tx,buffer_tx_cnt);
     }
   }
@@ -75,6 +77,8 @@ void uart_cb(uart_cb_t cb)
 
 static void uart_handler(void * p_context)
 {
+  buffer_rx[buffer_rx_cnt] = 0;
+  printf("RECV: %s\r\n",buffer_rx);
   callback(UART_RECV_MSG,buffer_rx,buffer_rx_cnt);
   memset(buffer_rx,0,sizeof(buffer_rx));
   buffer_rx_cnt = 0;

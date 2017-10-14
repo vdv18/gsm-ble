@@ -51,7 +51,7 @@ static const struct httppara_param_s httppara_cid = {
 };
 static const struct httppara_param_s httppara_url = {
   .param_tag = "URL",
-  .param_value = "\"http://monitorholoda.flynet.pro/test.php\"",
+  .param_value = "\"http://monitorholoda.flynet.pro/testx.php\"",
 };
 static struct httpdata_param_s httpdata_param = {
   .data = 0,
@@ -98,9 +98,10 @@ static uint32_t modem_status = 0;
 #define HTTP_INIT (1<<0)
 #define HTTP_PARA (1<<1)
 #define HTTP_ACTION (1<<2)
-#define HTTP_TERM (1<<3)
-#define HTTP_DATA (1<<4)
-#define HTTP_RESP (1<<5)
+#define HTTP_ACTION_STATUS (1<<3)
+#define HTTP_TERM (1<<4)
+#define HTTP_DATA (1<<5)
+#define HTTP_RESP (1<<31)
 
 static uint32_t http_status = 0;
 static void sim800c_callback(sim800c_cmd_t cmd, sim800c_resp_t resp, char *msg, int len)
@@ -137,6 +138,9 @@ static void sim800c_callback(sim800c_cmd_t cmd, sim800c_resp_t resp, char *msg, 
       {
         switch(resp)
         {
+          case SIM800C_RESP_HTTP_ACTION_STATUS:
+            http_status |= HTTP_ACTION_STATUS | HTTP_RESP;
+            break;
           case SIM800C_RESP_OK:
             http_status |= HTTP_ACTION | HTTP_RESP;
             break;
@@ -324,6 +328,7 @@ static void modem_handler(void * p_context)
         switch(post_data_state){
           case 0:
             timeout = 50;
+            http_status = 0;
             sim800c_cmd_send(SIM800C_CMD_HTTPINIT, (void*)NULL); 
             post_data_state++;
             break;
@@ -382,11 +387,12 @@ static void modem_handler(void * p_context)
             timeout = 100;
             sim800c_cmd_send(SIM800C_CMD_HTTPACTION, (void*)&httpaction_param); 
             post_data_state++;
-              app_timer_start(timer_id,APP_TIMER_TICKS(1000),NULL);
-              return;
-            break;
-          case 9:
-            if(http_status & HTTP_RESP == HTTP_RESP)
+            app_timer_start(timer_id,APP_TIMER_TICKS(1000),NULL);
+            return;
+          case 9: // WAIT HTTPACTION
+            if( ( http_status & (HTTP_RESP | HTTP_ACTION | HTTP_ACTION_STATUS )) 
+                  == 
+                ( HTTP_RESP | HTTP_ACTION | HTTP_ACTION_STATUS ) )
             {
               http_status &=~(HTTP_RESP);
               post_data_state++;
@@ -445,7 +451,8 @@ void modem_init(modem_handler_t _handler)
     while(1);
   }
   app_timer_start(timer_id,APP_TIMER_TICKS(1000),NULL);
-  callback = _handler;
+  if(_handler)
+    callback = _handler;
   sim800c_init();
   sim800c_set_cb(sim800c_callback);
 //  for(int i=0;i<sizeof(cmd_list_init)/sizeof(command_list_t);i++)

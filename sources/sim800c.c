@@ -49,6 +49,7 @@ static int sim800c_cmd_push(sim800c_cmd_t cmd, void *param);
 void uart_cb_work(uart_state_t state, uint8_t *data, int len);
 
 static uint8_t uart_cb_download = 0;
+static uint8_t uart_cb_http_action_data_resp = 0;
 static uint8_t uart_cb_ok = 0;
 static uint8_t uart_cb_call_rdy = 0;
 static uint8_t uart_cb_sms_rdy = 0;
@@ -83,6 +84,11 @@ void uart_cb_work(uart_state_t state, uint8_t *data, int len)
       {
         uart_cb_download = 1;
         callback(cmd_current.cmd, SIM800C_RESP_HTTP_DOWNLOAD, NULL, 0);
+      }
+      if(strstr(data,"+HTTPACTION:") != 0)
+      {
+        uart_cb_http_action_data_resp = 1;
+        callback(SIM800C_CMD_HTTPACTION, SIM800C_RESP_HTTP_ACTION_STATUS, NULL, 0);
       }
       break;
     case UART_SEND_MSG_COMPLETE:
@@ -411,7 +417,7 @@ static int sim800c_command_httpdata(int *cmd_state)
         }
         if(uart_cb_download)
         {
-          uart_cb_ok = 0;
+          uart_cb_download = 0;
           *cmd_state = CMD_STAT_SEND_DATA;
           sim800c_command_handler_timer(APP_TIMER_TICKS(10));
           break;
@@ -428,6 +434,7 @@ static int sim800c_command_httpdata(int *cmd_state)
     case CMD_STAT_SEND_DATA:
       {
         timeout = 100;
+        param = (struct httpdata_param_s*)cmd_current.param;
         uart_send_buffer(param->data,param->data_len);
         *cmd_state = CMD_STAT_SEND_DATA_WAIT;
         sim800c_command_handler_timer(APP_TIMER_TICKS(10));

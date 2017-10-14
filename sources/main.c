@@ -106,11 +106,12 @@ void main()
   led_init();
 //  led_set(LED_1,LED_MODE_FAST_BLINK);
 //  led_set(LED_2,LED_MODE_BLINK);
-  modem_init(modem_handler);
-//  if(central)
-//    modem_handler(MODEM_INITIALIZED);
-//  else
-//    modem_handler(MODEM_DISABLED);
+  modem_init(NULL);
+  central = 1;
+  if(central)
+    modem_handler(MODEM_INITIALIZED);
+  else
+    modem_handler(MODEM_DISABLED);
   while(1){
     if(CHARGER_STATE_YES == charger_state())
     {
