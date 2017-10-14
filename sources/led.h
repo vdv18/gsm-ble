@@ -9,6 +9,8 @@ typedef enum {
   LED_MODE_ON   = 1,
   LED_MODE_BLINK= 2,
   LED_MODE_FAST_BLINK = 3,
+  LED_MODE_ULTRA_FAST_BLINK = 4,
+  LED_MODE_SLOW_BLINK= 5,
 } led_mode_t;
 
 enum led_id_e {

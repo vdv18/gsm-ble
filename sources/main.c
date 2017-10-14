@@ -111,13 +111,16 @@ void modem_handler(modem_state_t state)
         while(1);
       }
       app_timer_start(timer_send_data_id,APP_TIMER_TICKS(10000),NULL);
+      led_set(LED_2,LED_MODE_BLINK);
       break;
     case MODEM_INITIALIZING:
+      led_set(LED_2,LED_MODE_ULTRA_FAST_BLINK);
       central = 1;
       central_init();
       sensors_init(sensors_handler);
       break;
     case MODEM_DISABLED:
+      led_set(LED_2,LED_MODE_SLOW_BLINK);
       central = 0;
       advertizer_init();
       sensors_init(sensors_handler);
