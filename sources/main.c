@@ -10,12 +10,8 @@
 #include "advertizer.h"
 
 #include <stdlib.h>
-#define DEVICE_TYPE_CENTRAL    1
-#define DEVICE_TYPE_ADVERTIZER 0
 
-#define DEFAULT_DEVICE_TYPE DEVICE_TYPE_CENTRAL
-
-static int central = DEFAULT_DEVICE_TYPE; // 1=central; 0=advertizer
+static int central = 0; // 1=central; 0=advertizer
 
 void assertion_handler(uint32_t id, uint32_t pc, uint32_t info)
 {
@@ -101,6 +97,8 @@ void modem_handler(modem_state_t state)
   switch(state)
   {
     case MODEM_INITIALIZED:
+      break;
+    case MODEM_INITIALIZING:
       central = 1;
       central_init();
       sensors_init(sensors_handler);
@@ -133,11 +131,7 @@ void main()
     while(1);
   }
   led_init();
-  modem_init(NULL);
-  if(central)
-    modem_handler(MODEM_INITIALIZED);
-  else
-    modem_handler(MODEM_DISABLED);
+  modem_init(modem_handler);
   while(1){
     if(sensors_ready)
     {

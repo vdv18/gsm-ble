@@ -1,6 +1,7 @@
 #include "modem.h"
 #include "app_timer.h"
 #include "sim800c.h"
+#include "nrf_delay.h"
 
 static int post_ready = 0;
 static void sim800c_callback(sim800c_cmd_t cmd, sim800c_resp_t resp, char *msg, int len);
@@ -445,20 +446,38 @@ static void modem_handler(void * p_context)
 
 void modem_init(modem_handler_t _handler)
 {
-  
+  uint32_t temp =0;
   if(NRF_SUCCESS != app_timer_create(&timer_id,APP_TIMER_MODE_SINGLE_SHOT,modem_handler))
   {
     while(1);
   }
-  app_timer_start(timer_id,APP_TIMER_TICKS(1000),NULL);
-  if(_handler)
-    callback = _handler;
-  sim800c_init();
-  sim800c_set_cb(sim800c_callback);
-//  for(int i=0;i<sizeof(cmd_list_init)/sizeof(command_list_t);i++)
-//  {
-//    sim800c_cmd_send(cmd_list_init[0].cmd, cmd_list_init[i].param);
-//  }
+  NRF_P0->OUTCLR = 1<<5;
+  temp = NRF_P0->PIN_CNF[5];
+  NRF_P0->PIN_CNF[5] = ((uint32_t)GPIO_PIN_CNF_DIR_Output << GPIO_PIN_CNF_DIR_Pos)
+                             | ((uint32_t)0 << GPIO_PIN_CNF_INPUT_Pos)
+                             | ((uint32_t)0 << GPIO_PIN_CNF_PULL_Pos)
+                             | ((uint32_t)0 << GPIO_PIN_CNF_DRIVE_Pos)
+                             | ((uint32_t)GPIO_PIN_CNF_DRIVE_S0S1 << GPIO_PIN_CNF_SENSE_Pos);
+  //NRF_P0->OUTSET = 1<<5;
+  NRF_P0->OUTSET = 1<<5;
+  nrf_delay_ms(100);
+  if( (NRF_P0->IN & (1<<5)) == (1<<5) )
+  {
+    NRF_P0->OUTCLR = 1<<5;
+    NRF_P0->PIN_CNF[5] = temp;
+    sim800c_init();
+    app_timer_start(timer_id,APP_TIMER_TICKS(1000),NULL);
+    if(_handler)
+      callback = _handler;
+    sim800c_set_cb(sim800c_callback);
+    callback(MODEM_INITIALIZING);
+  }
+  else
+  {
+    NRF_P0->OUTCLR = 1<<5;
+    NRF_P0->PIN_CNF[5] = temp;
+    callback(MODEM_DISABLED);
+  }
 }
 
 void modem_deinit(void)

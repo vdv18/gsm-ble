@@ -2,6 +2,7 @@
 #define __MODEM_H__
 
 typedef enum {
+  MODEM_INITIALIZING,
   MODEM_INITIALIZED,
   MODEM_DISABLED,
 } modem_state_t;
