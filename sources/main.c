@@ -54,30 +54,44 @@ static void power_manage(void)
 //    APP_ERROR_CHECK(err_code);
 }
 static int ready = 0;
-static uint64_t sensors[4];
+static uint16_t sensors_id_seq = 0;
+static uint8_t sensors_ready;
+static uint16_t sensors[4];
 static uint16_t sensor_raw_data[4];
-void sensors_handler( enum sensors_index_e sensor, uint64_t data )
+static uint16_t sensor_converted_data[4];
+void sensors_handler( enum sensors_index_e sensor, uint16_t data )
 {
-  static uint16_t id = 0;
   switch(sensor)
   {
+    
+    // RAW data
     case SENSOR_ADC_1:
-      sensors[0] = data;
       sensor_raw_data[0] = data &0xFFFF;
       break;
     case SENSOR_ADC_2:
-      sensors[1] = data;
       sensor_raw_data[1] = data &0xFFFF;
       break;
     case SENSOR_ADC_3:
-      sensors[2] = data;
       sensor_raw_data[2] = data &0xFFFF;
       break;
     case SENSOR_ADC_4:
-      sensors[3] = data;
       sensor_raw_data[3] = data &0xFFFF;
-      if(!central)
-        advertizer_update_data(id++,&sensor_raw_data[0],4);
+      break;
+      
+    // Converted data
+    case SENSOR_CONVERTED_1:
+      sensor_converted_data[0] = data &0xFFFF;
+      break;
+    case SENSOR_CONVERTED_2:
+      sensor_converted_data[1] = data &0xFFFF;
+      break;
+    case SENSOR_CONVERTED_3:
+      sensor_converted_data[2] = data &0xFFFF;
+      break;
+    case SENSOR_CONVERTED_4:
+      sensor_converted_data[3] = data &0xFFFF;
+      sensors_ready++;
+      sensors_id_seq++;
       break;
   }
 }
@@ -100,6 +114,17 @@ void modem_handler(modem_state_t state)
   }
 }
 
+void convert_sensors_data_from_raw(uint16_t *raw, uint16_t *converted)
+{
+  // read sample
+  uint16_t data = *raw;
+  
+  // process conversion
+  
+  // write sample
+  *converted = data;
+}
+
 void main()
 {
   sd_init();
@@ -114,6 +139,13 @@ void main()
   else
     modem_handler(MODEM_DISABLED);
   while(1){
+    if(sensors_ready)
+    {
+      sensors_ready = 0;
+      if(!central){
+        advertizer_update_data(sensors_id_seq++,&sensor_converted_data[0],4);
+      }
+    }
     if(CHARGER_STATE_YES == charger_state())
     {
       led_set(LED_3,LED_MODE_ON);

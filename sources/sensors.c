@@ -4,19 +4,46 @@
 
 #define SAADC_DATA_CNT 4
 static uint16_t saadc_data[SAADC_DATA_CNT];
+static uint16_t saadc_data_conv[SAADC_DATA_CNT];
 
-static void default_handler( enum sensors_index_e sensor, uint64_t data );
+static void default_handler( enum sensors_index_e sensor, uint16_t data );
 static sensors_handler_t handler = default_handler;
 static app_timer_t timer;
 static app_timer_id_t timer_id = &timer;
+static sensors_converter_t converter = NULL;
+void sensors_set_converter(sensors_converter_t _converter)
+{
+  if(_converter)
+    converter = _converter;
+}
 
 void SAADC_IRQHandler()
 {
   if(NRF_SAADC->RESULT.AMOUNT >= SAADC_DATA_CNT)
   {
+    if(converter)
+    {
+      converter(&saadc_data[0], &saadc_data_conv[0]);
+      handler(SENSOR_CONVERTED_1, saadc_data_conv[0]);
+    }
     handler(SENSOR_ADC_1, saadc_data[0]);
+    if(converter)
+    {
+      converter(&saadc_data[1], &saadc_data_conv[1]);
+      handler(SENSOR_CONVERTED_2, saadc_data_conv[1]);
+    }
     handler(SENSOR_ADC_2, saadc_data[1]);
+    if(converter)
+    {
+      converter(&saadc_data[2], &saadc_data_conv[2]);
+      handler(SENSOR_CONVERTED_3, saadc_data_conv[2]);
+    }
     handler(SENSOR_ADC_3, saadc_data[2]);
+    if(converter)
+    {
+      converter(&saadc_data[3], &saadc_data_conv[3]);
+      handler(SENSOR_CONVERTED_4, saadc_data_conv[3]);
+    }
     handler(SENSOR_ADC_4, saadc_data[3]);
     NRF_SAADC->EVENTS_DONE = 0;
     NRF_SAADC->EVENTS_END = 0;
@@ -84,6 +111,6 @@ void sensors_deinit()
 }
 
 
-static void default_handler( enum sensors_index_e sensor, uint64_t data )
+static void default_handler( enum sensors_index_e sensor, uint16_t data )
 {
 }
