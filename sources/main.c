@@ -99,6 +99,7 @@ void sensors_handler( enum sensors_index_e sensor, uint16_t data )
 void modem_send_json(uint8_t *data, int size);
 
 void timer_send_data_callback( void * p_data);
+void convert_sensors_data_from_raw(uint16_t *raw, uint16_t *converted);
 
 void modem_handler(modem_state_t state)
 {
@@ -118,12 +119,14 @@ void modem_handler(modem_state_t state)
       central = 1;
       central_init();
       sensors_init(sensors_handler);
+      sensors_set_converter(convert_sensors_data_from_raw);
       break;
     case MODEM_DISABLED:
       led_set(LED_2,LED_MODE_SLOW_BLINK);
       central = 0;
       advertizer_init();
       sensors_init(sensors_handler);
+      sensors_set_converter(convert_sensors_data_from_raw);
       break;
     case MODEM_PROCESSING:
       modem_ready = 0;
