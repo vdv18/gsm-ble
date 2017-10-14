@@ -2,6 +2,7 @@
 #define __MODEM_H__
 
 #include <stdint.h>
+#include "config.h"
 
 typedef enum {
   MODEM_INITIALIZING,

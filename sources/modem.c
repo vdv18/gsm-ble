@@ -25,7 +25,7 @@ const struct sapbr_param_s sapbr_apn = {
   .cmd_type = 3,
   .cid = 1,
   .param_tag = "APN",
-  .param_value = "Beeline"
+  .param_value = MODEM_APN
 };
 const struct sapbr_param_s sapbr_open_gprs_context = {
   .cmd_type = 1,
@@ -52,7 +52,7 @@ static const struct httppara_param_s httppara_cid = {
 };
 static const struct httppara_param_s httppara_url = {
   .param_tag = "URL",
-  .param_value = "\"http://monitorholoda.flynet.pro/testx.php\"",
+  .param_value = MODEM_URL_POST,
 };
 static struct httpdata_param_s httpdata_param = {
   .data = 0,

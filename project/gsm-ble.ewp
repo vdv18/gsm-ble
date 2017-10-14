@@ -2165,6 +2165,9 @@
       <name>$PROJ_DIR$\..\sources\charger.h</name>
     </file>
     <file>
+      <name>$PROJ_DIR$\..\sources\config.h</name>
+    </file>
+    <file>
       <name>$PROJ_DIR$\..\sources\iar_startup_nrf52.s</name>
     </file>
     <file>
