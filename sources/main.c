@@ -301,7 +301,6 @@ void convert_sensors_data_from_raw(uint16_t *raw, uint16_t *converted)
 
 void main()
 {
-  //static int test_data_json_size = 0;
   sd_init();
   if(app_timer_init() != NRF_SUCCESS)
   {
@@ -309,13 +308,7 @@ void main()
   }
   led_init();
   modem_init(modem_handler);
-  //printf(data_json);
   while(1){
-//    if(test_data_json_size)
-//    {
-//      test_data_json_size = prepare_json(data_json,JSON_DATA_SIZE);
-//      test_data_json_size = 0;
-//    }
     if(sensors_ready)
     {
       sensors_ready = 0;

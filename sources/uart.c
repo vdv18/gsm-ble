@@ -78,8 +78,8 @@ void uart_cb(uart_cb_t cb)
 static void uart_handler(void * p_context)
 {
   buffer_rx[buffer_rx_cnt] = 0;
-  printf("RECV: %s\r\n",buffer_rx);
   callback(UART_RECV_MSG,buffer_rx,buffer_rx_cnt);
+  //printf("RECV: %s\r\n",buffer_rx);
   memset(buffer_rx,0,sizeof(buffer_rx));
   buffer_rx_cnt = 0;
 }
@@ -109,7 +109,7 @@ void uart_init()
 
 void uart_deinit()
 {
-  NRF_UART0->BAUDRATE = UART_BAUDRATE_BAUDRATE_Baud9600; // 115200
+  NRF_UART0->BAUDRATE = UART_BAUDRATE_BAUDRATE_Baud19200; // 115200
   NRF_UART0->CONFIG   = 0x00; // No parity No HW flow control
   NRF_UART0->PSELRXD = 0xFFFFFFFF; // 0x02
   NRF_UART0->PSELTXD = 0xFFFFFFFF; // 0x03

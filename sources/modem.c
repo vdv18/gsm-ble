@@ -360,7 +360,7 @@ static void modem_handler(void * p_context)
             timeout = 50;
             sim800c_cmd_send(SIM800C_CMD_HTTPPARA, (void*)&httppara_url); 
             post_data_state++;
-              app_timer_start(timer_id,APP_TIMER_TICKS(2000),NULL);
+              app_timer_start(timer_id,APP_TIMER_TICKS(200),NULL);
               return;
             break;
           case 5:
@@ -368,7 +368,7 @@ static void modem_handler(void * p_context)
             {
               http_status &=~(HTTP_RESP);
               post_data_state++;
-              app_timer_start(timer_id,APP_TIMER_TICKS(2000),NULL);
+              app_timer_start(timer_id,APP_TIMER_TICKS(200),NULL);
               return;
             }
             break;
@@ -376,7 +376,7 @@ static void modem_handler(void * p_context)
             timeout = 100;
             sim800c_cmd_send(SIM800C_CMD_HTTPDATA, (void*)&httpdata_param); 
             post_data_state++;
-              app_timer_start(timer_id,APP_TIMER_TICKS(2000),NULL);
+              app_timer_start(timer_id,APP_TIMER_TICKS(200),NULL);
               return;
             break;
           case 7:
@@ -384,7 +384,7 @@ static void modem_handler(void * p_context)
             {
               http_status &=~(HTTP_RESP);
               post_data_state++;
-              app_timer_start(timer_id,APP_TIMER_TICKS(2000),NULL);
+              app_timer_start(timer_id,APP_TIMER_TICKS(200),NULL);
               return;
             }
             break;
@@ -392,7 +392,7 @@ static void modem_handler(void * p_context)
             timeout = 100;
             sim800c_cmd_send(SIM800C_CMD_HTTPACTION, (void*)&httpaction_param); 
             post_data_state++;
-            app_timer_start(timer_id,APP_TIMER_TICKS(1000),NULL);
+            app_timer_start(timer_id,APP_TIMER_TICKS(100),NULL);
             return;
           case 9: // WAIT HTTPACTION
             if( ( http_status & (HTTP_RESP | HTTP_ACTION | HTTP_ACTION_STATUS )) 
@@ -401,7 +401,7 @@ static void modem_handler(void * p_context)
             {
               http_status &=~(HTTP_RESP);
               post_data_state++;
-              app_timer_start(timer_id,APP_TIMER_TICKS(1000),NULL);
+              app_timer_start(timer_id,APP_TIMER_TICKS(100),NULL);
               return;
             }
             break;
@@ -409,7 +409,7 @@ static void modem_handler(void * p_context)
             timeout = 50;
             sim800c_cmd_send(SIM800C_CMD_HTTPTERM, (void*)NULL); 
             post_data_state++;
-            app_timer_start(timer_id,APP_TIMER_TICKS(1000),NULL);
+            app_timer_start(timer_id,APP_TIMER_TICKS(100),NULL);
             return;
             break;
           case 11:
@@ -417,7 +417,7 @@ static void modem_handler(void * p_context)
             {
               http_status &=~(HTTP_RESP);
               post_data_state++;
-              app_timer_start(timer_id,APP_TIMER_TICKS(1000),NULL);
+              app_timer_start(timer_id,APP_TIMER_TICKS(100),NULL);
               return;
             }
             break;
@@ -472,12 +472,13 @@ void modem_init(modem_handler_t _handler)
                              | ((uint32_t)GPIO_PIN_CNF_DRIVE_S0S1 << GPIO_PIN_CNF_SENSE_Pos);
   //NRF_P0->OUTSET = 1<<5;
   NRF_P0->OUTSET = 1<<5;
-  nrf_delay_ms(100);
+  nrf_delay_ms(10);
   if( (NRF_P0->IN & (1<<5)) == (1<<5) )
   {
     NRF_P0->OUTCLR = 1<<5;
     NRF_P0->PIN_CNF[5] = temp;
     sim800c_init();
+    nrf_delay_ms(100);
     app_timer_start(timer_id,APP_TIMER_TICKS(1000),NULL);
     if(_handler)
       callback = _handler;
