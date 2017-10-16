@@ -55,6 +55,7 @@ static void power_manage(void)
 static int modem_complete = 0;
 static int power_off = 0;
 static int modem_ready = 0;
+static int modem_settings_recv = 0;
 static uint16_t sensors_id_seq = 0;
 static uint8_t sensors_ready;
 static uint16_t sensors[4];
@@ -105,7 +106,7 @@ void modem_send_json(uint8_t *data, int size);
 void timer_send_data_callback( void * p_data);
 void convert_sensors_data_from_raw(uint16_t *raw, uint16_t *converted);
 
-void modem_handler(modem_state_t state)
+void modem_handler(modem_state_t state,uint8_t *data, int size)
 {
   switch(state)
   {
@@ -140,6 +141,9 @@ void modem_handler(modem_state_t state)
       break;
     case MODEM_SEND_COMPLETE:
       modem_complete = 1;
+      break;
+    case MODEM_SETTINGS_RECV:
+      modem_settings_recv = 1;
       break;
       
   }
@@ -318,6 +322,7 @@ void main()
   }
   led_init();
   modem_init(modem_handler);
+  modem_set_buffer(data_json,sizeof(data_json));
   while(1){
     if(sensors_ready)
     {

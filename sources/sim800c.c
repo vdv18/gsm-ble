@@ -45,7 +45,6 @@ static sim800c_command_t *cmd_list = 0;
 static int sim800c_cmd_pop(sim800c_command_t *cmd);
 static int sim800c_cmd_push(sim800c_cmd_t cmd, void *param);
 
-
 void uart_cb_work(uart_state_t state, uint8_t *data, int len);
 
 static uint8_t uart_cb_download = 0;
@@ -55,8 +54,12 @@ static uint8_t uart_cb_call_rdy = 0;
 static uint8_t uart_cb_sms_rdy = 0;
 static uint8_t uart_cb_err = 0;
 
+static uint8_t *data_recv = 0;
+static uint8_t data_recv_len = 0;
 void uart_cb_work(uart_state_t state, uint8_t *data, int len)
 {
+  data_recv = data;
+  data_recv_len = len;
   switch(state)
   {
     case UART_RECV_MSG:
@@ -88,7 +91,7 @@ void uart_cb_work(uart_state_t state, uint8_t *data, int len)
       if(strstr(data,"+HTTPACTION:") != 0)
       {
         uart_cb_http_action_data_resp = 1;
-        callback(SIM800C_CMD_HTTPACTION, SIM800C_RESP_HTTP_ACTION_STATUS, NULL, 0);
+        callback(SIM800C_CMD_HTTPACTION, SIM800C_RESP_HTTP_ACTION_STATUS, data, len);
       }
       break;
     case UART_SEND_MSG_COMPLETE:
@@ -163,6 +166,7 @@ static int sim800c_command_sapbr(int *cmd_state);
 static int sim800c_command_httpinit(int *cmd_state);
 static int sim800c_command_httppara(int *cmd_state);
 static int sim800c_command_httpdata(int *cmd_state);
+static int sim800c_command_httpread(int *cmd_state);
 static int sim800c_command_httpaction(int *cmd_state);
 static int sim800c_command_httpterm(int *cmd_state);
 
@@ -220,11 +224,20 @@ static int cmd_state = CMD_STATE_DEFAULT;
     case SIM800C_CMD_HTTPDATA:
       sim800c_command_httpdata(&cmd_state);
       break;
+    case SIM800C_CMD_HTTPREAD:
+      sim800c_command_httpread(&cmd_state);
+      break;
     case SIM800C_CMD_HTTPACTION:
       sim800c_command_httpaction(&cmd_state);
       break;
     case SIM800C_CMD_HTTPTERM:
       sim800c_command_httpterm(&cmd_state);
+      break;
+    case SIM800C_CMD_CMGF:
+      sim800c_command_cmgf(&cmd_state);
+      break;
+    case SIM800C_CMD_CMGS:
+      sim800c_command_cmgs(&cmd_state);
       break;
   };
   sim800c_command_handler_timer(100);
@@ -357,6 +370,128 @@ static int sim800c_command_httpaction(int *cmd_state)
       {
         *cmd_state = CMD_STATE_INIT;
         callback(cmd_current.cmd, SIM800C_RESP_OK,NULL, 0);
+        sim800c_command_handler_timer(APP_TIMER_TICKS(10));
+        cmd_current.cmd = SIM800C_CMD_NOP;
+      }
+      break;
+    case CMD_STATE_RESP_ERROR:
+      {
+        *cmd_state = CMD_STATE_INIT;
+        callback(cmd_current.cmd, SIM800C_RESP_ERR,NULL, 0);
+        sim800c_command_handler_timer(APP_TIMER_TICKS(10));
+        cmd_current.cmd = SIM800C_CMD_NOP;
+      }
+      break;
+    default:
+      {
+        *cmd_state = CMD_STATE_INIT;
+        callback(cmd_current.cmd, SIM800C_RESP_OTHER,NULL, 0);
+        sim800c_command_handler_timer(APP_TIMER_TICKS(10));
+        cmd_current.cmd = SIM800C_CMD_NOP;
+      }
+      break;
+  }
+  return 0;
+}
+
+static int sim800c_command_httpread(int *cmd_state)
+{
+  static int timeout = 0;
+  struct httpdata_param_s *param;
+#define CMD_STATE_WAIT_UART_RESP (CMD_STATE_INIT+3)
+#define CMD_STATE_RESP_OK (CMD_STATE_INIT+4)
+#define CMD_STATE_RESP_TIMEOUT (CMD_STATE_INIT+5)
+#define CMD_STATE_RESP_ERROR (CMD_STATE_INIT+6)
+#define CMD_STAT_RECV_DATA (CMD_STATE_INIT+7)
+#define CMD_STAT_RECV_DATA_WAIT (CMD_STATE_INIT+8)
+  
+  switch(*cmd_state)
+  {
+    case CMD_STATE_INIT:
+      {
+        uint8_t at_request[0xFF];
+        *cmd_state = CMD_STATE_WAIT_UART_RESP;
+        timeout = 20;
+        uart_cb_ok = uart_cb_err = 0;
+        param = (struct httpdata_param_s*)cmd_current.param;
+        sprintf(at_request,"AT+HTTPDATA=%d,%d\r\n",param->data_len,10000);
+        uart_send(at_request,strlen(at_request));
+        sim800c_command_handler_timer(APP_TIMER_TICKS(10));
+      }
+      break;
+    case CMD_STATE_WAIT_UART_RESP:
+      {
+        if(timeout) timeout--;
+        else
+        {
+          *cmd_state = CMD_STATE_RESP_TIMEOUT;
+          sim800c_command_handler_timer(APP_TIMER_TICKS(10));
+          break;
+        }
+        if(uart_cb_ok && uart_cb_download)
+        {
+          uart_cb_ok = 0;
+          uart_cb_download = 0;
+          *cmd_state = CMD_STATE_RESP_OK;
+          sim800c_command_handler_timer(APP_TIMER_TICKS(10));
+          break;
+        }
+        if(uart_cb_err)
+        {
+          uart_cb_err = 0;
+          *cmd_state = CMD_STATE_RESP_ERROR;
+          sim800c_command_handler_timer(APP_TIMER_TICKS(10));
+        }
+        sim800c_command_handler_timer(APP_TIMER_TICKS(100));
+      }
+      break;
+    case CMD_STAT_RECV_DATA:
+      {
+        timeout = 100;
+        param = (struct httpdata_param_s*)cmd_current.param;
+        uart_send_buffer(param->data,param->data_len);
+        *cmd_state = CMD_STAT_RECV_DATA_WAIT;
+        sim800c_command_handler_timer(APP_TIMER_TICKS(10));
+      }
+      break;
+    case CMD_STAT_RECV_DATA_WAIT:
+      {
+        if(timeout) timeout--;
+        else
+        {
+          *cmd_state = CMD_STATE_RESP_TIMEOUT;
+          sim800c_command_handler_timer(APP_TIMER_TICKS(10));
+          break;
+        }
+        if(uart_cb_ok)
+        {
+          uart_cb_ok = 0;
+          *cmd_state = CMD_STATE_RESP_OK;
+          sim800c_command_handler_timer(APP_TIMER_TICKS(10));
+          break;
+        }   
+        if(uart_cb_err)
+        {
+          uart_cb_err = 0;
+          *cmd_state = CMD_STATE_RESP_ERROR;
+          sim800c_command_handler_timer(APP_TIMER_TICKS(10));
+          break;
+        }
+        sim800c_command_handler_timer(APP_TIMER_TICKS(100));
+      }
+      break;
+    case CMD_STATE_RESP_TIMEOUT:
+      {
+        cmd_current.cmd = SIM800C_CMD_NOP;
+        *cmd_state = CMD_STATE_INIT;
+        callback(cmd_current.cmd, SIM800C_RESP_TIMEOUT,NULL, 0);
+        sim800c_command_handler_timer(APP_TIMER_TICKS(10));
+      }
+      break;
+    case CMD_STATE_RESP_OK:
+      {
+        *cmd_state = CMD_STATE_INIT;
+        callback(cmd_current.cmd, SIM800C_RESP_OK,data_recv, data_recv_len);
         sim800c_command_handler_timer(APP_TIMER_TICKS(10));
         cmd_current.cmd = SIM800C_CMD_NOP;
       }
@@ -773,6 +908,174 @@ static int sim800c_command_at(int *cmd_state)
         timeout = 20;
         uart_cb_ok = uart_cb_err = 0;
         sprintf(data,"AT\r\n");
+        uart_send(data,strlen(data));
+        sim800c_command_handler_timer(APP_TIMER_TICKS(10));
+      }
+      break;
+    case CMD_STATE_WAIT_UART_RESP:
+      {
+        if(timeout) timeout--;
+        else
+        {
+          *cmd_state = CMD_STATE_RESP_TIMEOUT;
+          sim800c_command_handler_timer(APP_TIMER_TICKS(10));
+          break;
+        }
+        if(uart_cb_ok || uart_cb_err)
+        {
+          if(uart_cb_ok)
+          {
+            uart_cb_ok = 0;
+            *cmd_state = CMD_STATE_RESP_OK;
+            sim800c_command_handler_timer(APP_TIMER_TICKS(10));
+          }
+          
+          if(uart_cb_err)
+          {
+            uart_cb_err = 0;
+            *cmd_state = CMD_STATE_RESP_ERROR;
+            sim800c_command_handler_timer(APP_TIMER_TICKS(10));
+          }
+        }
+        sim800c_command_handler_timer(APP_TIMER_TICKS(100));
+      }
+      break;
+    case CMD_STATE_RESP_TIMEOUT:
+      {
+        cmd_current.cmd = SIM800C_CMD_NOP;
+        *cmd_state = CMD_STATE_INIT;
+        callback(cmd_current.cmd, SIM800C_RESP_TIMEOUT,NULL, 0);
+        sim800c_command_handler_timer(APP_TIMER_TICKS(10));
+      }
+      break;
+    case CMD_STATE_RESP_OK:
+      {
+        *cmd_state = CMD_STATE_INIT;
+        callback(cmd_current.cmd, SIM800C_RESP_OK,NULL, 0);
+        sim800c_command_handler_timer(APP_TIMER_TICKS(10));
+        cmd_current.cmd = SIM800C_CMD_NOP;
+      }
+      break;
+    case CMD_STATE_RESP_ERROR:
+      {
+        *cmd_state = CMD_STATE_INIT;
+        callback(cmd_current.cmd, SIM800C_RESP_ERR,NULL, 0);
+        sim800c_command_handler_timer(APP_TIMER_TICKS(10));
+        cmd_current.cmd = SIM800C_CMD_NOP;
+      }
+      break;
+    default:
+      {
+        *cmd_state = CMD_STATE_INIT;
+        callback(cmd_current.cmd, SIM800C_RESP_OTHER,NULL, 0);
+        sim800c_command_handler_timer(APP_TIMER_TICKS(10));
+        cmd_current.cmd = SIM800C_CMD_NOP;
+      }
+      break;
+  }
+  return 0;
+}
+static int sim800c_command_cmgf(int *cmd_state)
+{
+  static int timeout = 0;
+#define CMD_STATE_WAIT_UART_RESP (CMD_STATE_INIT+3)
+#define CMD_STATE_RESP_OK (CMD_STATE_INIT+4)
+#define CMD_STATE_RESP_TIMEOUT (CMD_STATE_INIT+5)
+#define CMD_STATE_RESP_ERROR (CMD_STATE_INIT+6)
+  
+  switch(*cmd_state)
+  {
+    case CMD_STATE_INIT:
+      {
+        uint8_t data[0xFF];
+        *cmd_state = CMD_STATE_WAIT_UART_RESP;
+        timeout = 20;
+        uart_cb_ok = uart_cb_err = 0;
+        sprintf(data,"AT+CMGF=1\r\n");
+        uart_send(data,strlen(data));
+        sim800c_command_handler_timer(APP_TIMER_TICKS(10));
+      }
+      break;
+    case CMD_STATE_WAIT_UART_RESP:
+      {
+        if(timeout) timeout--;
+        else
+        {
+          *cmd_state = CMD_STATE_RESP_TIMEOUT;
+          sim800c_command_handler_timer(APP_TIMER_TICKS(10));
+          break;
+        }
+        if(uart_cb_ok || uart_cb_err)
+        {
+          if(uart_cb_ok)
+          {
+            uart_cb_ok = 0;
+            *cmd_state = CMD_STATE_RESP_OK;
+            sim800c_command_handler_timer(APP_TIMER_TICKS(10));
+          }
+          
+          if(uart_cb_err)
+          {
+            uart_cb_err = 0;
+            *cmd_state = CMD_STATE_RESP_ERROR;
+            sim800c_command_handler_timer(APP_TIMER_TICKS(10));
+          }
+        }
+        sim800c_command_handler_timer(APP_TIMER_TICKS(100));
+      }
+      break;
+    case CMD_STATE_RESP_TIMEOUT:
+      {
+        cmd_current.cmd = SIM800C_CMD_NOP;
+        *cmd_state = CMD_STATE_INIT;
+        callback(cmd_current.cmd, SIM800C_RESP_TIMEOUT,NULL, 0);
+        sim800c_command_handler_timer(APP_TIMER_TICKS(10));
+      }
+      break;
+    case CMD_STATE_RESP_OK:
+      {
+        *cmd_state = CMD_STATE_INIT;
+        callback(cmd_current.cmd, SIM800C_RESP_OK,NULL, 0);
+        sim800c_command_handler_timer(APP_TIMER_TICKS(10));
+        cmd_current.cmd = SIM800C_CMD_NOP;
+      }
+      break;
+    case CMD_STATE_RESP_ERROR:
+      {
+        *cmd_state = CMD_STATE_INIT;
+        callback(cmd_current.cmd, SIM800C_RESP_ERR,NULL, 0);
+        sim800c_command_handler_timer(APP_TIMER_TICKS(10));
+        cmd_current.cmd = SIM800C_CMD_NOP;
+      }
+      break;
+    default:
+      {
+        *cmd_state = CMD_STATE_INIT;
+        callback(cmd_current.cmd, SIM800C_RESP_OTHER,NULL, 0);
+        sim800c_command_handler_timer(APP_TIMER_TICKS(10));
+        cmd_current.cmd = SIM800C_CMD_NOP;
+      }
+      break;
+  }
+  return 0;
+}
+static int sim800c_command_cmgs(int *cmd_state)
+{
+  static int timeout = 0;
+#define CMD_STATE_WAIT_UART_RESP (CMD_STATE_INIT+3)
+#define CMD_STATE_RESP_OK (CMD_STATE_INIT+4)
+#define CMD_STATE_RESP_TIMEOUT (CMD_STATE_INIT+5)
+#define CMD_STATE_RESP_ERROR (CMD_STATE_INIT+6)
+  
+  switch(*cmd_state)
+  {
+    case CMD_STATE_INIT:
+      {
+        uint8_t data[0xFF];
+        *cmd_state = CMD_STATE_WAIT_UART_RESP;
+        timeout = 20;
+        uart_cb_ok = uart_cb_err = 0;
+        sprintf(data,"AT+CMGS=\"%s\"\r\n","test");
         uart_send(data,strlen(data));
         sim800c_command_handler_timer(APP_TIMER_TICKS(10));
       }

@@ -41,6 +41,9 @@ typedef enum {
   SIM800C_CMD_HTTPREAD,
   SIM800C_CMD_HTTPACTION,
   SIM800C_CMD_HTTPTERM,
+  //SIM800C_CMD_CLTS, //AT+CLTS?
+  SIM800C_CMD_CMGF,
+  SIM800C_CMD_CMGS,
 } sim800c_cmd_t;
 
 typedef void (*sim800c_callback_t)(sim800c_cmd_t cmd, sim800c_resp_t resp, char *msg, int len);
@@ -70,6 +73,11 @@ struct httppara_param_s {
 };
 //SIM800C_CMD_HTTPDATA
 struct httpdata_param_s {
+  uint8_t *data;
+  uint16_t data_len;
+};
+//SIM800C_CMD_HTTPREAD
+struct httpread_param_s {
   uint8_t *data;
   uint16_t data_len;
 };

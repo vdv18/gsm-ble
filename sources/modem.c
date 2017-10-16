@@ -5,7 +5,7 @@
 
 static int post_ready = 0;
 static void sim800c_callback(sim800c_cmd_t cmd, sim800c_resp_t resp, char *msg, int len);
-static void default_handler(modem_state_t state){};
+static void default_handler(modem_state_t state, uint8_t *data, int size){};
 static modem_handler_t callback = default_handler;
 static app_timer_t timer;
 static app_timer_id_t timer_id = &timer;
@@ -35,13 +35,13 @@ const struct sapbr_param_s sapbr_query_gprs_context = {
   .cmd_type = 2,
   .cid = 1,
 };
-
-static const command_list_t cmd_list_init[] = {
-  { SIM800C_CMD_SAPBR, (void*)&sapbr_contype },
-  { SIM800C_CMD_SAPBR, (void*)&sapbr_apn },
-  { SIM800C_CMD_SAPBR, (void*)&sapbr_open_gprs_context },
-  { SIM800C_CMD_SAPBR, (void*)&sapbr_query_gprs_context },
-};
+//
+//static const command_list_t cmd_list_init[] = {
+//  { SIM800C_CMD_SAPBR, (void*)&sapbr_contype },
+//  { SIM800C_CMD_SAPBR, (void*)&sapbr_apn },
+//  { SIM800C_CMD_SAPBR, (void*)&sapbr_open_gprs_context },
+//  { SIM800C_CMD_SAPBR, (void*)&sapbr_query_gprs_context },
+//};
 
 static const struct httpaction_param_s httpaction_param = {
   .action = 1,
@@ -55,6 +55,11 @@ static const struct httppara_param_s httppara_url = {
   .param_value = MODEM_URL_POST,
 };
 static struct httpdata_param_s httpdata_param = {
+  .data = 0,
+  .data_len = 0
+};
+
+static struct httpread_param_s httpread_param = {
   .data = 0,
   .data_len = 0
 };
@@ -99,12 +104,17 @@ static uint32_t modem_status = 0;
 #define HTTP_INIT (1<<0)
 #define HTTP_PARA (1<<1)
 #define HTTP_ACTION (1<<2)
-#define HTTP_ACTION_STATUS (1<<3)
-#define HTTP_TERM (1<<4)
-#define HTTP_DATA (1<<5)
-#define HTTP_RESP (1<<31)
+#define HTTP_TERM (1<<3)
+#define HTTP_DATA (1<<4)
+#define HTTP_READ (1<<5)
+#define HTTP_ACTION_STATUS (1<<6)
+#define HTTP_ACTION_READ_DATA (1<<7)
+#define HTTP_RESP (1<<30)
 
+static int http_action_read = 0;
 static uint32_t http_status = 0;
+static uint8_t *modem_buffer = 0;
+static int modem_buffer_size = 0;
 static void sim800c_callback(sim800c_cmd_t cmd, sim800c_resp_t resp, char *msg, int len)
 {
   switch(cmd)
@@ -141,6 +151,23 @@ static void sim800c_callback(sim800c_cmd_t cmd, sim800c_resp_t resp, char *msg, 
         {
           case SIM800C_RESP_HTTP_ACTION_STATUS:
             http_status |= HTTP_ACTION_STATUS | HTTP_RESP;
+            if(strstr(msg,"HTTPACTION"))
+            {
+              char *temp = 0;
+              if(temp = strstr(msg, ":"))
+              {
+                int data[3];
+                temp++;
+                if(sscanf(temp,"%d,%d,%d",&data[0],&data[1],&data[2]))
+                {
+                  if(data[1] == 200 && data[2] > 0)
+                  {
+                    http_action_read = data[2];
+                    http_status |= HTTP_ACTION_READ_DATA;
+                  }
+                }
+              }
+            }
             break;
           case SIM800C_RESP_OK:
             http_status |= HTTP_ACTION | HTTP_RESP;
@@ -157,6 +184,33 @@ static void sim800c_callback(sim800c_cmd_t cmd, sim800c_resp_t resp, char *msg, 
         {
           case SIM800C_RESP_OK:
             http_status |= HTTP_TERM | HTTP_RESP;
+            break;
+          case SIM800C_RESP_ERR:
+            http_status |= HTTP_RESP;
+            break;
+        }
+      }
+      break;
+    case SIM800C_CMD_HTTPREAD:
+      {
+        switch(resp)
+        {
+          case SIM800C_RESP_OK:
+            char *end,*start;
+            char *dst = (char*)modem_buffer;
+            modem_buffer_size = 0;
+            start = strstr(msg,"DOWNLOAD");
+            end = strstr(msg,"OK");
+            if((end !=0) && (start != 0) && (dst != 0))
+            {
+              start += 8;
+              while(start<=end)
+              {
+                *dst++ = *start++;
+                modem_buffer_size++;
+              }
+            }
+            http_status |= HTTP_READ | HTTP_RESP;
             break;
           case SIM800C_RESP_ERR:
             http_status |= HTTP_RESP;
@@ -241,7 +295,14 @@ static void sim800c_callback(sim800c_cmd_t cmd, sim800c_resp_t resp, char *msg, 
       break;
   }
 }
-const uint8_t test_data[] = "{\"test\":\"1\"}";
+
+void modem_set_buffer(uint8_t *data, int size)
+{
+  modem_buffer = data;
+  modem_buffer_size = size;
+}
+
+const char test_data[] = "{\"test\":\"1\"}";
 static void modem_handler(void * p_context)
 {
   static int post_data_state = 0;
@@ -296,7 +357,7 @@ static void modem_handler(void * p_context)
             httpdata_param.data_len = strlen(test_data);
             post_ready = 0;
           }
-          callback(MODEM_INITIALIZED);
+          callback(MODEM_INITIALIZED,NULL,0);
           app_timer_start(timer_id,APP_TIMER_TICKS(2000),NULL);
           return;
         }
@@ -306,11 +367,11 @@ static void modem_handler(void * p_context)
       {
         if(modem_state_prev != modem_state)
         {
-          callback(MODEM_READY);
+          callback(MODEM_READY,NULL,0);
         }
         if(post_ready)
         {
-          callback(MODEM_PROCESSING);
+          callback(MODEM_PROCESSING,NULL,0);
           modem_state = STATE_WORK_SEND_POST_DATA;
         }
       }
@@ -318,18 +379,17 @@ static void modem_handler(void * p_context)
     case STATE_WORK_SEND_POST_DATA:
       {
         static int timeout = 50;
-        int ready = 0;
         if(modem_state_prev != modem_state)
         {
           http_status = 0x00;
           post_data_state = 0;
         }
-        if(http_status & (HTTP_INIT|HTTP_PARA|HTTP_ACTION|HTTP_TERM|HTTP_DATA|HTTP_RESP) 
-           ==
-           (HTTP_INIT|HTTP_PARA|HTTP_ACTION|HTTP_TERM|HTTP_DATA|HTTP_RESP))
-        {
-          ready = 0;
-        }
+//        if(http_status & (HTTP_INIT|HTTP_PARA|HTTP_ACTION|HTTP_TERM|HTTP_DATA|HTTP_RESP) 
+//           ==
+//           (HTTP_INIT|HTTP_PARA|HTTP_ACTION|HTTP_TERM|HTTP_DATA|HTTP_RESP))
+//        {
+//          ready = 0;
+//        }
         switch(post_data_state){
           case 0:
             timeout = 50;
@@ -400,14 +460,25 @@ static void modem_handler(void * p_context)
                 ( HTTP_RESP | HTTP_ACTION | HTTP_ACTION_STATUS ) )
             {
               http_status &=~(HTTP_RESP);
-              post_data_state++;
+              if(http_status & HTTP_ACTION_READ_DATA)
+              {
+                post_data_state++;
+              }
+              else
+              {
+                post_data_state++;
+                post_data_state++;
+                post_data_state++;
+              }
               app_timer_start(timer_id,APP_TIMER_TICKS(100),NULL);
               return;
             }
             break;
           case 10:
             timeout = 50;
-            sim800c_cmd_send(SIM800C_CMD_HTTPTERM, (void*)NULL); 
+            // size data: http_action_read;
+            httpread_param.data_len = http_action_read;
+            sim800c_cmd_send(SIM800C_CMD_HTTPREAD, (void*)&httpread_param); 
             post_data_state++;
             app_timer_start(timer_id,APP_TIMER_TICKS(100),NULL);
             return;
@@ -417,16 +488,35 @@ static void modem_handler(void * p_context)
             {
               http_status &=~(HTTP_RESP);
               post_data_state++;
+              if(http_status & HTTP_READ == HTTP_READ)
+              {
+                callback(MODEM_SETTINGS_RECV,modem_buffer,modem_buffer_size);
+              }
               app_timer_start(timer_id,APP_TIMER_TICKS(100),NULL);
               return;
             }
             break;
           case 12:
             timeout = 50;
-            ready = 1;
+            sim800c_cmd_send(SIM800C_CMD_HTTPTERM, (void*)NULL); 
+            post_data_state++;
+            app_timer_start(timer_id,APP_TIMER_TICKS(100),NULL);
+            return;
+            break;
+          case 13:
+            if(http_status & HTTP_RESP == HTTP_RESP)
+            {
+              http_status &=~(HTTP_RESP);
+              post_data_state++;
+              app_timer_start(timer_id,APP_TIMER_TICKS(100),NULL);
+              return;
+            }
+            break;
+          case 14:
+            timeout = 50;
             post_ready = 0;
             post_data_state = 0;
-            callback(MODEM_SEND_COMPLETE);
+            callback(MODEM_SEND_COMPLETE,NULL,0);
             modem_state = STATE_WORK;
             break;
         };
@@ -483,13 +573,13 @@ void modem_init(modem_handler_t _handler)
     nrf_delay_ms(100);
     app_timer_start(timer_id,APP_TIMER_TICKS(1000),NULL);
     sim800c_set_cb(sim800c_callback);
-    callback(MODEM_INITIALIZING);
+    callback(MODEM_INITIALIZING,NULL,0);
   }
   else
   {
     NRF_P0->OUTCLR = 1<<5;
     NRF_P0->PIN_CNF[5] = temp;
-    callback(MODEM_DISABLED);
+    callback(MODEM_DISABLED,NULL,0);
   }
 }
 
