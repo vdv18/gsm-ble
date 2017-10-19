@@ -33,5 +33,4 @@ Debug/
 project/settings/
 project/Debug/
 *.dep
-*.ewd
 *.ewt
