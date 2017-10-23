@@ -47,25 +47,25 @@ void SAADC_IRQHandler()
       saadc_data_avr[0] = saadc_data_avr[1] = saadc_data_avr[2] = saadc_data_avr[3] = 0;
       if(converter)
       {
-        converter(&saadc_data_avr_complete[0], &saadc_data_conv[0]);
+        converter(SENSOR_ADC_1,&saadc_data_avr_complete[0], &saadc_data_conv[0]);
         handler(SENSOR_CONVERTED_1, saadc_data_conv[0]);
       }
       handler(SENSOR_ADC_1, saadc_data_avr_complete[0]);
       if(converter)
       {
-        converter(&saadc_data_avr_complete[1], &saadc_data_conv[1]);
+        converter(SENSOR_ADC_2,&saadc_data_avr_complete[1], &saadc_data_conv[1]);
         handler(SENSOR_CONVERTED_2, saadc_data_conv[1]);
       }
       handler(SENSOR_ADC_2, saadc_data_avr_complete[1]);
       if(converter)
       {
-        converter(&saadc_data_avr_complete[2], &saadc_data_conv[2]);
+        converter(SENSOR_ADC_3,&saadc_data_avr_complete[2], &saadc_data_conv[2]);
         handler(SENSOR_CONVERTED_3, saadc_data_conv[2]);
       }
       handler(SENSOR_ADC_3, saadc_data_avr_complete[2]);
       if(converter)
       {
-        converter(&saadc_data_avr_complete[3], &saadc_data_conv[3]);
+        converter(SENSOR_ADC_4,&saadc_data_avr_complete[3], &saadc_data_conv[3]);
         handler(SENSOR_CONVERTED_4, saadc_data_conv[3]);
       }
       handler(SENSOR_ADC_4, saadc_data_avr_complete[3]);

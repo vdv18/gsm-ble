@@ -14,7 +14,7 @@ enum sensors_index_e {
   SENSOR_I2C_PARAM_1,
 };
 
-typedef void (*sensors_converter_t)( uint16_t *raw, uint16_t *converted );
+typedef void (*sensors_converter_t)(enum sensors_index_e sensor, uint16_t *raw, uint16_t *converted );
 typedef void (*sensors_handler_t)( enum sensors_index_e sensor, uint16_t data );
 
 void sensors_init(sensors_handler_t handler);

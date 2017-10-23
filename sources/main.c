@@ -104,7 +104,7 @@ void sensors_handler( enum sensors_index_e sensor, uint16_t data )
 void modem_send_json(uint8_t *data, int size);
 
 void timer_send_data_callback( void * p_data);
-void convert_sensors_data_from_raw(uint16_t *raw, uint16_t *converted);
+void convert_sensors_data_from_raw(enum sensors_index_e sensor, uint16_t *raw, uint16_t *converted);
 
 void modem_handler(modem_state_t state,uint8_t *data, int size)
 {
@@ -302,7 +302,7 @@ void timer_send_data_callback( void * p_data)
   }
 }
 
-void convert_sensors_data_from_raw(uint16_t *raw, uint16_t *converted)
+void convert_sensors_data_from_raw(enum sensors_index_e sensor, uint16_t *raw, uint16_t *converted)
 {
   // read sample
   uint16_t data = *raw;
