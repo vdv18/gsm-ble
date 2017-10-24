@@ -237,10 +237,10 @@ static void ble_handler()
             {
               item->timestamp++;
               item->id = (uint16_t)adv_data.p_data[13]<<8 | (uint16_t)adv_data.p_data[14];
-              item->data[0] = (uint16_t)adv_data.p_data[15]<<8 | (uint16_t)adv_data.p_data[16];
-              item->data[1] = (uint16_t)adv_data.p_data[17]<<8 | (uint16_t)adv_data.p_data[18];
-              item->data[2] = (uint16_t)adv_data.p_data[19]<<8 | (uint16_t)adv_data.p_data[20];
-              item->data[3] = (uint16_t)adv_data.p_data[21]<<8 | (uint16_t)adv_data.p_data[22];
+              item->data[0] = (int16_t)((uint16_t)adv_data.p_data[15]<<8 | (uint16_t)adv_data.p_data[16]);
+              item->data[1] = (int16_t)((uint16_t)adv_data.p_data[17]<<8 | (uint16_t)adv_data.p_data[18]);
+              item->data[2] = (int16_t)((uint16_t)adv_data.p_data[19]<<8 | (uint16_t)adv_data.p_data[20]);
+              item->data[3] = (int16_t)((uint16_t)adv_data.p_data[21]<<8 | (uint16_t)adv_data.p_data[22]);
               memcpy(item->name,adv_type.p_data,adv_type.size);
               led_set(LED_1,LED_MODE_ON);
               app_timer_start(timer_id,APP_TIMER_TICKS(10),NULL);

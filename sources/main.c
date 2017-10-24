@@ -207,7 +207,7 @@ extern int central_mac_data_size;
     //size += prepare_comma(&data[size]);
     size += prepare_value_str(&data[size], "NAME",name);
     size += prepare_comma(&data[size]);
-    size += prepare_value_int(&data[size], "DATA",(int)sensor_converted_data[j]);
+    size += prepare_value_int(&data[size], "DATA",(int16_t)sensor_converted_data[j]);
     size += sprintf(&data[size],"}");
     if(j < 4-1)
     {
@@ -308,9 +308,11 @@ void convert_sensors_data_from_raw(enum sensors_index_e sensor, uint16_t *raw, u
   uint16_t data = *raw;
   
   // process conversion
+  float temp = 0.0;
+  temp =  0.000005*data*data - 0.0402*data + 51.514; //converting formula
   
   // write sample
-  *converted = data;
+  *converted = (uint16_t)((int16_t)temp);
 }
 
 void main()
