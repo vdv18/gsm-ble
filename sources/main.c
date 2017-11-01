@@ -27,7 +27,7 @@ uint32_t sd_init()
   uint32_t ret_code;
   nrf_clock_lf_cfg_t clock;
   
-  clock.source = NRF_CLOCK_LF_SRC_XTAL;
+  clock.source = NRF_CLOCK_LF_SRC_SYNTH;
   clock.rc_ctiv = 0;
   clock.rc_temp_ctiv = 0;
   clock.accuracy = NRF_CLOCK_LF_ACCURACY_20_PPM;
