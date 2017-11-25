@@ -445,6 +445,8 @@ PT_THREAD(MODEM_HANDLER(struct pt *pt))
     time = get_timestamp();
     if(modem_power_on)
     {
+      
+      led_set(LED_2,LED_MODE_ON);
       GSM_ProcessCallbacks(&GSM);
        /* Try to connect to network */
       gsmRes = GSM_GPRS_Attach(&GSM, GSM_APN, GSM_APN_USER, GSM_APN_PASS, 1);
@@ -493,6 +495,7 @@ PT_THREAD(MODEM_HANDLER(struct pt *pt))
         goto __modem_handler_end;
       }
       
+      led_set(LED_2,LED_MODE_OFF);
       while (GSM_HTTP_DataAvailable(&GSM, 1))
       {
         gsmRes = GSM_HTTP_Read(&GSM, receive, sizeof(receive), &br, 1);
@@ -573,6 +576,9 @@ void main()
   }
   led_init();
   SysTick_Config(64000);
+  central_init();
+  sensors_init(sensors_handler);
+  sensors_set_converter(convert_sensors_data_from_raw);
   /* Proto thread initialization */
   PT_INIT(&PT);                                           /* Initialize SMS protothread */
   while(1){
@@ -617,6 +623,10 @@ void main()
     if(CHARGER_STATE_YES == charger_state())
     {
       led_set(LED_3,LED_MODE_ON);
+    }
+    else
+    {
+      led_set(LED_3,LED_MODE_OFF);
     }
     if (power_off)
     {
