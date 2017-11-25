@@ -305,6 +305,7 @@ void modem_set_buffer(uint8_t *data, int size)
 const char test_data[] = "{\"test\":\"1\"}";
 static void modem_handler(void * p_context)
 {
+  static int gsm_init_timeout = 0;
   static int post_data_state = 0;
   static enum modem_state_int_e modem_state_prev = STATE_INIT;
   enum modem_state_int_e modem_state_old = modem_state;
@@ -324,16 +325,36 @@ static void modem_handler(void * p_context)
       break;
     case STATE_WAIT_INIT:
       {
-        //sim800c_cmd_send(SIM800C_CMD_POWER_ON, NULL);
+        if(modem_state_prev != modem_state)
+        {
+          gsm_init_timeout = 0;
+        }
+        if(gsm_init_timeout++ > 300)
+        {
+          gsm_init_timeout = 0;
+          modem_state = STATE_REINIT;
+        }
       }
       break;
     case STATE_GSM_INIT:
       {
         if(modem_state_prev != modem_state)
         {
-          sim800c_cmd_send(SIM800C_CMD_AT, (void*)&sapbr_contype);
+          gsm_init_timeout = 0;
         }
-        if((modem_status & (CALL_READY | SMS_READY))  ==  (CALL_READY | SMS_READY)){
+        if(gsm_init_timeout % 30 == 0)
+          sim800c_cmd_send(SIM800C_CMD_AT, (void*)&sapbr_contype);
+         
+            
+        if(gsm_init_timeout++ > 300)
+        {
+          gsm_init_timeout = 0;
+          modem_state = STATE_REINIT;
+        }
+        //if((modem_status & (CALL_READY | SMS_READY | AT_OK))  ==  (CALL_READY | SMS_READY))
+        if((modem_status & (CALL_READY | SMS_READY | AT_OK)))
+        {
+          gsm_init_timeout = 0;
           modem_state = STATE_WORK_INIT;
           app_timer_start(timer_id,APP_TIMER_TICKS(2000),NULL);
           return;
@@ -531,6 +552,7 @@ static void modem_handler(void * p_context)
       break;
     case STATE_NO_WORK:
       {
+          modem_state = STATE_REINIT;
       }
       break;
   }

@@ -291,6 +291,7 @@ static int sim800c_cmd_push(sim800c_cmd_t cmd, void *param)
     if(cmd_items[i].cmd == SIM800C_CMD_NOP){
       cmd_items[i].cmd = cmd;
       cmd_items[i].param = param;
+      cmd_items[i].next = 0;
       if(item)
       {
         while(item->next != 0)

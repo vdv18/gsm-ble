@@ -45,7 +45,7 @@
         </option>
         <option>
           <name>MemFile</name>
-          <state>$PROJ_DIR$\nRF52832s132.icf</state>
+          <state>$TOOLKIT_DIR$\CONFIG\debugger\NordicSemi\nRF52832-xxAA.ddf</state>
         </option>
         <option>
           <name>RunToEnable</name>

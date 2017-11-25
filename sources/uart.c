@@ -16,6 +16,7 @@ static app_timer_id_t timer_id = &timer;
 static void default_handler(uart_state_t state, uint8_t *data, int len);
 static uart_cb_t callback = default_handler;
 
+
 void UARTE0_UART0_IRQHandler()
 {
   if(NRF_UART0->EVENTS_ERROR){
@@ -39,6 +40,7 @@ void UARTE0_UART0_IRQHandler()
       NRF_UART0->TASKS_STOPTX = 1;
       buffer_tx[buffer_tx_cnt] = 0;
       //printf("SEND: %s\r\n",buffer_tx);
+      //buffer_rx_cnt = 0;
       callback(UART_SEND_MSG_COMPLETE,buffer_tx,buffer_tx_cnt);
     }
   }

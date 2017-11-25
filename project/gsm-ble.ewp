@@ -319,6 +319,10 @@
           <state>$PROJ_DIR$\..\libraries\s132_nrf52_5.0.0_API\include\nrf52</state>
           <state>$PROJ_DIR$\..\libraries\device\</state>
           <state>$PROJ_DIR$\..\libraries\timer\</state>
+          <state>$PROJ_DIR$\..\libraries\gsmlib\</state>
+          <state>$PROJ_DIR$\..\libraries\</state>
+          <state>$PROJ_DIR$\..\libraries\json\</state>
+          <state>$PROJ_DIR$\..\libraries\pt\</state>
           <state>$PROJ_DIR$\..\libraries\util\</state>
         </option>
         <option>
@@ -2012,6 +2016,48 @@
       </file>
     </group>
     <group>
+      <name>gsmlib</name>
+      <file>
+        <name>$PROJ_DIR$\..\libraries\gsmlib\buffer.c</name>
+      </file>
+      <file>
+        <name>$PROJ_DIR$\..\libraries\gsmlib\buffer.h</name>
+      </file>
+      <file>
+        <name>$PROJ_DIR$\..\libraries\gsmlib\gsm.c</name>
+      </file>
+      <file>
+        <name>$PROJ_DIR$\..\libraries\gsmlib\gsm.h</name>
+      </file>
+    </group>
+    <group>
+      <name>json</name>
+      <file>
+        <name>$PROJ_DIR$\..\libraries\json\jsmn.c</name>
+      </file>
+      <file>
+        <name>$PROJ_DIR$\..\libraries\json\jsmn.h</name>
+      </file>
+    </group>
+    <group>
+      <name>pt</name>
+      <file>
+        <name>$PROJ_DIR$\..\libraries\pt\lc-addrlabels.h</name>
+      </file>
+      <file>
+        <name>$PROJ_DIR$\..\libraries\pt\lc-switch.h</name>
+      </file>
+      <file>
+        <name>$PROJ_DIR$\..\libraries\pt\lc.h</name>
+      </file>
+      <file>
+        <name>$PROJ_DIR$\..\libraries\pt\pt-sem.h</name>
+      </file>
+      <file>
+        <name>$PROJ_DIR$\..\libraries\pt\pt.h</name>
+      </file>
+    </group>
+    <group>
       <name>s132_nrf52_5.0.0_API</name>
       <group>
         <name>include</name>
@@ -2168,6 +2214,15 @@
       <name>$PROJ_DIR$\..\sources\config.h</name>
     </file>
     <file>
+      <name>$PROJ_DIR$\..\sources\gsm_config.h</name>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\sources\gsm_ll.c</name>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\sources\gsm_ll.h</name>
+    </file>
+    <file>
       <name>$PROJ_DIR$\..\sources\iar_startup_nrf52.s</name>
     </file>
     <file>
@@ -2180,12 +2235,6 @@
       <name>$PROJ_DIR$\..\sources\main.c</name>
     </file>
     <file>
-      <name>$PROJ_DIR$\..\sources\modem.c</name>
-    </file>
-    <file>
-      <name>$PROJ_DIR$\..\sources\modem.h</name>
-    </file>
-    <file>
       <name>$PROJ_DIR$\..\sources\nrf_delay.h</name>
     </file>
     <file>
@@ -2196,12 +2245,6 @@
     </file>
     <file>
       <name>$PROJ_DIR$\..\sources\sensors.h</name>
-    </file>
-    <file>
-      <name>$PROJ_DIR$\..\sources\sim800c.c</name>
-    </file>
-    <file>
-      <name>$PROJ_DIR$\..\sources\sim800c.h</name>
     </file>
     <file>
       <name>$PROJ_DIR$\..\sources\system_nrf52.c</name>
