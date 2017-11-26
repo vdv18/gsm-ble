@@ -17,6 +17,8 @@
 #include <stdlib.h>
 #include "config.h"
 
+void wdt_reset();
+
 /* Request URL */
 //#define GSM_HTTP_URL    "http://stm32f4-discovery.net/gsm_example.php"
 #define GSM_HTTP_URL    "http://monitorholoda.flynet.pro/json_post.php"
@@ -495,6 +497,9 @@ PT_THREAD(MODEM_HANDLER(struct pt *pt))
         goto __modem_handler_end;
       }
       
+      // Reset after right execuit
+      wdt_reset();
+      
       led_set(LED_2,LED_MODE_OFF);
       while (GSM_HTTP_DataAvailable(&GSM, 1))
       {
@@ -567,8 +572,24 @@ __modem_handler_end:
 }
 
 static int sms_clean_all = 0;
+
+void wdt_init()
+{
+#define WDT_INTERVAL (60*32768UL)
+#define WDT_RESET    (0x6E524635UL)
+  NRF_WDT->CONFIG = (1<<0);
+  NRF_WDT->RREN   = (0xFF<<0);
+  NRF_WDT->CRV    = WDT_INTERVAL;
+  NRF_WDT->TASKS_START = 1;
+}
+void wdt_reset()
+{
+  NRF_WDT->RR[0]  = WDT_RESET;
+}
+
 void main()
 {
+  wdt_init();
   sd_init();
   if(app_timer_init() != NRF_SUCCESS)
   {
