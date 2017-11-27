@@ -178,7 +178,7 @@ static uint32_t conn_cnt = 0;
 static uint32_t disconn_cnt = 0; 
 static uint8_array_t adv_data;
 static uint8_array_t adv_type;
-
+extern uint32_t get_timestamp();
 static void central_timer_led_off(void * p_context)
 {
   led_set(LED_1,LED_MODE_OFF);
@@ -217,25 +217,32 @@ static void ble_handler()
             int found = 0;
             mac_data_t *item = 0;
             adv_report_count++;
-            for(int i=0;i<central_mac_data_size;i++)
+            for(int i=0;i<MAC_DATA_LIST_SIZE;i++)
             {
+              if((central_mac_data_list[i].flag & (MAC_DATA_LIST_FLAG_ENABLED | MAC_DATA_LIST_FLAG_SETTINGS)) > 0)
               if(memcmp(p_peer_addr->addr,central_mac_data_list[i].mac,6) == 0)
               {
                 found = 1;
                 item = &central_mac_data_list[i];
+                break;
               }
             }
             if(!item)
             {
-              if(central_mac_data_size<MAC_DATA_LIST_SIZE)
+              for(int i=0;i<MAC_DATA_LIST_SIZE;i++)
               {
-                item = &central_mac_data_list[central_mac_data_size++];
-                memcpy(item->mac,p_peer_addr->addr,6);
+                if((central_mac_data_list[i].flag & (MAC_DATA_LIST_FLAG_ENABLED | MAC_DATA_LIST_FLAG_SETTINGS)) ==  0)
+                {
+                  item = &central_mac_data_list[i];
+                  break;
+                }
               }
             }
             if(item)
             {
-              item->timestamp++;
+              memcpy(item->mac,p_peer_addr->addr,6);
+              item->flag |= MAC_DATA_LIST_FLAG_ENABLED;
+              item->timestamp = get_timestamp();
               item->id = (uint16_t)adv_data.p_data[13]<<8 | (uint16_t)adv_data.p_data[14];
               item->data[0] = (int16_t)((uint16_t)adv_data.p_data[15]<<8 | (uint16_t)adv_data.p_data[16]);
               item->data[1] = (int16_t)((uint16_t)adv_data.p_data[17]<<8 | (uint16_t)adv_data.p_data[18]);
@@ -259,11 +266,26 @@ void central_init()
   {
     while(1);
   }
-  
+  // init
+  for(int i=0;i<MAC_DATA_LIST_SIZE;i++)
+  {
+    memset(&central_mac_data_list[i],0,sizeof(mac_data_t));
+  }
   ble_central_init();
 }
 void central_handler()
 {
+  // check timeout
+  for(int i=0;i<MAC_DATA_LIST_SIZE;i++)
+  {
+    if((central_mac_data_list[i].flag & (MAC_DATA_LIST_FLAG_ENABLED)) > 0)
+    {
+      if((get_timestamp() - central_mac_data_list[i].timestamp) > 10*1000)
+      {
+        central_mac_data_list[i].flag &=~MAC_DATA_LIST_FLAG_ENABLED;
+      }
+    }
+  }
   ble_handler();
 }
 

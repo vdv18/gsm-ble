@@ -190,9 +190,11 @@ extern int central_mac_data_size;
     }
   }
   size += sprintf(&data[size],"]}]}");
-  if(central_mac_data_size) {
-    
-    for(int i=0;i<central_mac_data_size;i++)
+  
+  
+  for(int i=0;i<MAC_DATA_LIST_SIZE;i++)
+  {
+    if((central_mac_data_list[i].flag & (MAC_DATA_LIST_FLAG_ENABLED)) > 0)
     {
       size += prepare_comma(&data[size]);
       size += sprintf(&data[size],"{");
@@ -575,16 +577,16 @@ static int sms_clean_all = 0;
 
 void wdt_init()
 {
-#define WDT_INTERVAL (60*32768UL)
+#define WDT_INTERVAL (2*60*32768UL)
 #define WDT_RESET    (0x6E524635UL)
   NRF_WDT->CONFIG = (1<<0);
-  NRF_WDT->RREN   = (0xFF<<0);
+  NRF_WDT->RREN   = (1<<0);
   NRF_WDT->CRV    = WDT_INTERVAL;
   NRF_WDT->TASKS_START = 1;
 }
 void wdt_reset()
 {
-  NRF_WDT->RR[0]  = WDT_RESET;
+  NRF_WDT->RR[0]  = WDT_RR_RR_Reload;
 }
 
 void main()
@@ -597,6 +599,7 @@ void main()
   }
   led_init();
   SysTick_Config(64000);
+  central = 1;
   central_init();
   sensors_init(sensors_handler);
   sensors_set_converter(convert_sensors_data_from_raw);
@@ -606,6 +609,7 @@ void main()
     //if(modem_power_on)
     MODEM_INIT(&MODEM);
     MODEM_HANDLER(&MODEMH);
+    central_handler();
     if(modem_power_on)
     {
       static int temp = 0;      
