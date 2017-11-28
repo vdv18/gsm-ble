@@ -25,7 +25,7 @@ void wdt_reset();
 uint32_t get_timestamp();
 
 jsmn_parser parser;
-jsmntok_t tokens[50];
+jsmntok_t tokens[20];
 
 static int central = 0; // 1=central; 0=advertizer
 
@@ -170,8 +170,8 @@ extern int central_mac_data_size;
   size += prepare_comma(&data[size]);
   size += prepare_value_str(&data[size], "mode", "C");
   size += prepare_comma(&data[size]);
-  size += prepare_value_int(&data[size], "timestamp", get_timestamp());
-  size += prepare_comma(&data[size]);
+  //size += prepare_value_int(&data[size], "timestamp", get_timestamp());
+  //size += prepare_comma(&data[size]);
   size += sprintf(&data[size],"\"data\":[");
   for(int j=0;j<4;j++)
   {
@@ -194,7 +194,7 @@ extern int central_mac_data_size;
   
   for(int i=0;i<MAC_DATA_LIST_SIZE;i++)
   {
-    if((central_mac_data_list[i].flag & (MAC_DATA_LIST_FLAG_ENABLED)) > 0)
+    if(((central_mac_data_list[i].flag) & (MAC_DATA_LIST_FLAG_ENABLED)) > 0)
     {
       size += prepare_comma(&data[size]);
       size += sprintf(&data[size],"{");
@@ -204,8 +204,8 @@ extern int central_mac_data_size;
       size += prepare_comma(&data[size]);
       size += prepare_value_mac(&data[size], "ID", central_mac_data_list[i].mac);
       size += prepare_comma(&data[size]);
-      size += prepare_value_int(&data[size], "timestamp", central_mac_data_list[i].timestamp);
-      size += prepare_comma(&data[size]);
+      //size += prepare_value_int(&data[size], "timestamp", central_mac_data_list[i].timestamp);
+      //size += prepare_comma(&data[size]);
       
       size += sprintf(&data[size],"\"sensors\":[{");
       
@@ -213,8 +213,8 @@ extern int central_mac_data_size;
       size += prepare_comma(&data[size]);
       size += prepare_value_str(&data[size], "mode", "C");
       size += prepare_comma(&data[size]);
-      size += prepare_value_int(&data[size], "timestamp", central_mac_data_list[i].timestamp);
-      size += prepare_comma(&data[size]);
+      //size += prepare_value_int(&data[size], "timestamp", central_mac_data_list[i].timestamp);
+      //size += prepare_comma(&data[size]);
       size += sprintf(&data[size],"\"data\":[");
       for(int j=0;j<4;j++)
       {
@@ -428,7 +428,7 @@ PT_THREAD(MODEM_INIT(struct pt *pt))
         modem_initialization = 1;
       else
       {
-        GSM_Init(&GSM, GSM_PIN, 9600, GSM_Callback);
+        GSM_Init(&GSM, GSM_PIN, 115200, GSM_Callback);
         modem_power_on = 1;
       }
     }
@@ -437,7 +437,6 @@ PT_THREAD(MODEM_INIT(struct pt *pt))
   PT_END(pt);
 }
 uint8_t send[] = "Hello from GSM module! The same as I sent you I just get back!";
-uint8_t receive[1000];
 uint32_t br;
 PT_THREAD(MODEM_HANDLER(struct pt *pt))
 {
@@ -505,7 +504,7 @@ PT_THREAD(MODEM_HANDLER(struct pt *pt))
       led_set(LED_2,LED_MODE_OFF);
       while (GSM_HTTP_DataAvailable(&GSM, 1))
       {
-        gsmRes = GSM_HTTP_Read(&GSM, receive, sizeof(receive), &br, 1);
+        gsmRes = GSM_HTTP_Read(&GSM, data_json, sizeof(data_json), &br, 1);
         PT_WAIT_UNTIL(pt, GSM_IsReady(&GSM) == gsmOK);  /* Wait stack to be ready */
         gsmRes = GSM_GetLastReturnStatus(&GSM);     /* Check actual send status from non-blocking call */
         if(gsmRes != gsmOK) 
@@ -516,10 +515,11 @@ PT_THREAD(MODEM_HANDLER(struct pt *pt))
         }
       }
       if(1){
+        char *receive = data_json;
         char obj[50];
         int obj_cnt = 0;
         jsmn_init(&parser);
-        obj_cnt = jsmn_parse(&parser, receive, sizeof(receive), tokens, sizeof(tokens)/sizeof(jsmntok_t));
+        obj_cnt = jsmn_parse(&parser, receive, sizeof(data_json), tokens, sizeof(tokens)/sizeof(jsmntok_t));
         if(obj_cnt > 6)
         if(tokens[0].type == JSMN_OBJECT)
         {
@@ -564,7 +564,7 @@ PT_THREAD(MODEM_HANDLER(struct pt *pt))
             }
           }
         }
-        memset(receive,0,sizeof(receive));
+        memset(receive,0,sizeof(data_json));
       }
 __modem_handler_end:
     }
@@ -685,4 +685,30 @@ int GSM_Callback(GSM_Event_t evt, GSM_EventParams_t* params) {
     }
     
     return 0;
+}
+
+void NMI_Handler( void )
+{
+  while(1)
+    NVIC_SystemReset();
+}
+void HardFault_Handler( void )
+{
+  while(1)
+    NVIC_SystemReset();
+}
+void MemoryManagement_Handler( void )
+{
+  while(1)
+    NVIC_SystemReset();
+}
+void BusFault_Handler( void )
+{
+  while(1)
+    NVIC_SystemReset();
+}
+void UsageFault_Handler( void )
+{
+  while(1)
+    NVIC_SystemReset();
 }

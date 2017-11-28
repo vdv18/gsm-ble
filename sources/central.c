@@ -276,6 +276,7 @@ void central_init()
 void central_handler()
 {
   // check timeout
+  
   for(int i=0;i<MAC_DATA_LIST_SIZE;i++)
   {
     if((central_mac_data_list[i].flag & (MAC_DATA_LIST_FLAG_ENABLED)) > 0)
@@ -284,6 +285,22 @@ void central_handler()
       {
         central_mac_data_list[i].flag &=~MAC_DATA_LIST_FLAG_ENABLED;
       }
+    }
+    if(0){
+      central_mac_data_list[i].data[0] = 10000;
+      central_mac_data_list[i].data[1] = 10000;
+      central_mac_data_list[i].data[2] = 10000;
+      central_mac_data_list[i].data[3] = 10000;
+      central_mac_data_list[i].flag |= MAC_DATA_LIST_FLAG_ENABLED;
+      central_mac_data_list[i].mac[0] = 0xAA;
+      central_mac_data_list[i].mac[1] = 0xAA;
+      central_mac_data_list[i].mac[2] = 0xAA;
+      central_mac_data_list[i].mac[3] = 0xAA;
+      central_mac_data_list[i].mac[4] = 0xAA;
+      central_mac_data_list[i].mac[5] = 0xAA;
+      central_mac_data_list[i].timestamp = 1294967296;
+      central_mac_data_list[i].id = 10000;
+      memcpy(central_mac_data_list[i].name,"0123456789ABCDE",16);
     }
   }
   ble_handler();

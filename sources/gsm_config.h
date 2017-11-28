@@ -54,7 +54,7 @@
  * \note   Use as much as possible, but not less than 128 bytes.
  *         For faster CPU you may be allowed to use smaller buffer.
  */
-#define GSM_BUFFER_SIZE                 512
+#define GSM_BUFFER_SIZE                 1024
 
 /**
  * \brief  Enables (1) or disables (0) RTOS support (re-entrancy) for library.
