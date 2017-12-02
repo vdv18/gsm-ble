@@ -27,7 +27,7 @@ static ble_gap_conn_params_t const m_connection_param =
 
 
 #define SCAN_INTERVAL             0x00A0                                /**< Determines scan interval in units of 0.625 millisecond. */
-#define SCAN_WINDOW               0x0050                                /**< Determines scan window in units of 0.625 millisecond. */
+#define SCAN_WINDOW               0x0010                                /**< Determines scan window in units of 0.625 millisecond. */
 #define SCAN_TIMEOUT              0x0000    
 static ble_gap_scan_params_t const m_scan_params =
 {
@@ -183,6 +183,15 @@ static void central_timer_led_off(void * p_context)
 {
   led_set(LED_1,LED_MODE_OFF);
 }
+static int central_search = 1;
+void central_off()
+{
+  central_search = 0;
+}
+void central_on()
+{
+  central_search = 1;
+}
 static void ble_handler()
 {
   uint32_t ret_code = 0;
@@ -196,7 +205,7 @@ static void ble_handler()
       return;
   }
   p_ble_evt = (ble_evt_t *)evt_buffer;
-  
+  if(central_search)
   switch(p_ble_evt->header.evt_id)
   {
     case BLE_GAP_EVT_ADV_REPORT:
@@ -206,6 +215,7 @@ static void ble_handler()
         ble_gap_addr_t const * p_peer_addr  = &p_gap_evt->params.adv_report.peer_addr;
         adv_data.p_data = (uint8_t *)p_gap_evt->params.adv_report.data;
         adv_data.size   = p_gap_evt->params.adv_report.dlen;
+        
         if((adv_report_parse(BLE_GAP_AD_TYPE_COMPLETE_LOCAL_NAME,&adv_data,&adv_type) == NRF_SUCCESS) 
            ||
            (adv_report_parse(BLE_GAP_AD_TYPE_SHORT_LOCAL_NAME,&adv_data,&adv_type) == NRF_SUCCESS))

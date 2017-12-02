@@ -123,7 +123,7 @@ void timer_send_data_callback( void * p_data);
 void convert_sensors_data_from_raw(enum sensors_index_e sensor, uint16_t *raw, uint16_t *converted);
 
 
-#define JSON_DATA_SIZE 1024*6
+#define JSON_DATA_SIZE 1024*2
 //#define JSON_DATA_SIZE 4096*2
 static uint8_t data_json[JSON_DATA_SIZE];
 int prepare_value_int(uint8_t *data, char const *var, int value)
@@ -244,10 +244,12 @@ int prepare_json(uint8_t *data, int max_data)
   int index = 0;
   uint8_t mac[6] = {0,};
   int size = 0;
+  int cnt = 0;
+  char *p = 0; 
   memset(data,0,max_data);
   
-  mac[0] = 
-  
+  central_off();
+#ifdef STD_JSON
   size += sprintf(&data[size],"{");
   
   size += prepare_value_str(&data[size], "type", "Master");
@@ -262,6 +264,39 @@ int prepare_json(uint8_t *data, int max_data)
   size += prepare_data_array(&data[size]);
   
   size += sprintf(&data[size],"}");
+#else
+  size += sprintf(&data[size],"{\"VERSION\":\"0.1\",\"HEX\":\"");
+  cnt = 0;
+  
+  cnt++;
+  p = (char*)(NRF_FICR->DEVICEADDR);
+  for(int j=0;j<6;j++)
+    size += sprintf(&data[size],"%02X",(int)*p++);
+  p = (char*)sensor_converted_data;
+  size += sprintf(&data[size],"%02X",0x08);
+  size += sprintf(&data[size],"%02X",0x82);
+  for(int j=0;j<8;j++)
+    size += sprintf(&data[size],"%02X",(int)*p++);
+  for(int i=0;i<MAC_DATA_LIST_SIZE;i++)
+  {
+    if(((central_mac_data_list[i].flag) & (MAC_DATA_LIST_FLAG_ENABLED)) > 0)
+    {
+      cnt++;
+      p = (char*)central_mac_data_list[i].mac;
+      for(int j=0;j<6;j++)
+        size += sprintf(&data[size],"%02X",(int)*p++);
+      p = (char*)central_mac_data_list[i].data;
+      size += sprintf(&data[size],"%02X",0x08);
+      size += sprintf(&data[size],"%02X",0x82);
+      for(int j=0;j<8;j++)
+        size += sprintf(&data[size],"%02X",(int)*p++);
+    }
+  }
+  size += sprintf(&data[size],"\",\"COUNT\":\"%d\"",cnt);
+  size += sprintf(&data[size],"}");
+#endif
+  central_on();
+  return size;
 }
 void timer_send_data_callback( void * p_data)
 {
@@ -428,7 +463,7 @@ PT_THREAD(MODEM_INIT(struct pt *pt))
         modem_initialization = 1;
       else
       {
-        GSM_Init(&GSM, GSM_PIN, 115200, GSM_Callback);
+        GSM_Init(&GSM, GSM_PIN, 9600, GSM_Callback);
         modem_power_on = 1;
       }
     }
@@ -436,7 +471,6 @@ PT_THREAD(MODEM_INIT(struct pt *pt))
   }
   PT_END(pt);
 }
-uint8_t send[] = "Hello from GSM module! The same as I sent you I just get back!";
 uint32_t br;
 PT_THREAD(MODEM_HANDLER(struct pt *pt))
 {

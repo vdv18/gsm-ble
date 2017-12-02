@@ -22,6 +22,8 @@ extern mac_data_t central_mac_data_list[];
 extern int central_mac_data_size;
 
 void central_init();
+void central_off();
+void central_on();
 void central_handler();
 void central_deinit();
 
