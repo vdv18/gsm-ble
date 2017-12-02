@@ -265,7 +265,7 @@ int prepare_json(uint8_t *data, int max_data)
   
   size += sprintf(&data[size],"}");
 #else
-  size += sprintf(&data[size],"{\"VERSION\":\"0.1\",\"HEX\":\"");
+  size += sprintf(&data[size],"{\"VERSION\":\"0.1\", \"TIMESTAMP\":\"%d\",\"HEX\":\"", get_timestamp());
   cnt = 0;
   
   cnt++;

@@ -99,7 +99,7 @@ void uart_init()
   NRF_UART0->TASKS_STARTRX = 1;
   
   NVIC_ClearPendingIRQ(UARTE0_UART0_IRQn);
-  NVIC_SetPriority(UARTE0_UART0_IRQn, 1);
+  NVIC_SetPriority(UARTE0_UART0_IRQn, 0);
   NVIC_EnableIRQ(UARTE0_UART0_IRQn);
   
   if(NRF_SUCCESS != app_timer_create(&timer_id,APP_TIMER_MODE_SINGLE_SHOT,uart_handler))
