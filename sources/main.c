@@ -8,6 +8,7 @@
 #include "app_timer.h"
 #include "central.h"
 #include "advertizer.h"
+#include "ds18b20.h"
 
 #include <stdlib.h>
 
@@ -15,6 +16,8 @@ static int central = 0; // 1=central; 0=advertizer
 
 static app_timer_t timer_send_data;
 static app_timer_id_t timer_send_data_id = &timer_send_data;
+static app_timer_t timer_read;
+static app_timer_id_t timer_read_id = &timer_read;
 
 void assertion_handler(uint32_t id, uint32_t pc, uint32_t info)
 {
@@ -62,6 +65,56 @@ static uint16_t sensors[4];
 static uint16_t sensor_raw_data[4];
 static uint16_t sensor_converted_data[4];
 static uint16_t int_temp = 0;
+
+static char read[4][16];
+static int read_complete[4] = 0;
+void ds18b20_handler(void * p_context)
+{
+  static int state = 0;
+  switch(state++)
+  {
+    case 0:
+      {
+        if(ds18b20_reset(DS18B20_CH0))
+          ds18b20_start_measure(DS18B20_CH0);
+        if(ds18b20_reset(DS18B20_CH1))
+          ds18b20_start_measure(DS18B20_CH1);
+        if(ds18b20_reset(DS18B20_CH2))
+          ds18b20_start_measure(DS18B20_CH2);
+        if(ds18b20_reset(DS18B20_CH3))
+          ds18b20_start_measure(DS18B20_CH3);
+        app_timer_start(timer_read_id,APP_TIMER_TICKS(950),NULL);
+        return;
+      }
+      break;
+    case 1:
+      {
+        if(ds18b20_reset(DS18B20_CH0))
+          if( 0 == ds18b20_read_measure(DS18B20_CH0,read[0]) )
+          {
+            read_complete[0] = ((read[0][0]<<8) | (read[0][1]));
+          }
+        if(ds18b20_reset(DS18B20_CH1))
+          if( 0 == ds18b20_read_measure(DS18B20_CH1,read[1]) )
+          {
+            read_complete[1] = ((read[1][0]<<8) | (read[1][1]));
+          }
+        if(ds18b20_reset(DS18B20_CH2))
+          if( 0 == ds18b20_read_measure(DS18B20_CH2,read[2]) )
+          {
+            read_complete[2] = ((read[2][0]<<8) | (read[2][1]));
+          }
+        if(ds18b20_reset(DS18B20_CH3))
+          if( 0 == ds18b20_read_measure(DS18B20_CH3,read[3]) )
+          {
+            read_complete[3] = ((read[3][0]<<8) | (read[3][1]));
+          }
+        state = 0;
+      }
+      break;
+  }
+  app_timer_start(timer_read_id,APP_TIMER_TICKS(10),NULL);
+}
 void sensors_handler( enum sensors_index_e sensor, uint16_t data )
 {
   switch(sensor)
@@ -305,16 +358,28 @@ void timer_send_data_callback( void * p_data)
 void convert_sensors_data_from_raw(enum sensors_index_e sensor, uint16_t *raw, uint16_t *converted)
 {
   // read sample
-  uint16_t data = *raw;
-  
+  uint16_t data = 0;
   // process conversion
-  float temp = 0.0;
-  temp =  0.000005*data*data - 0.0402*data + 51.514; //converting formula
-  
+  //float temp = 0.0;
+  //temp =  0.000005*data*data - 0.0402*data + 51.514; //converting formula
+  switch(sensor){
+    case SENSOR_ADC_1:{
+        data = read_complete[0];
+      }break;
+    case SENSOR_ADC_2:{
+        data = read_complete[1];
+      }break;
+    case SENSOR_ADC_3:{
+        data = read_complete[2];
+      }break;
+    case SENSOR_ADC_4:{
+        data = read_complete[3];
+      }break;
+  }
   // write sample
-  *converted = (uint16_t)((int16_t)temp);
+  *converted = data;//(uint16_t)((int16_t)temp);
 }
-
+volatile uint32_t  reset_counter = 0;
 void main()
 {
   sd_init();
@@ -323,6 +388,12 @@ void main()
     while(1);
   }
   led_init();
+
+  if(NRF_SUCCESS != app_timer_create(&timer_read_id,APP_TIMER_MODE_SINGLE_SHOT,ds18b20_handler))
+  {
+    while(1);
+  }
+  app_timer_start(timer_read_id,APP_TIMER_TICKS(10),NULL);
   modem_init(modem_handler);
   modem_set_buffer(data_json,sizeof(data_json));
   while(1){

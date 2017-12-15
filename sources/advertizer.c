@@ -23,7 +23,7 @@ static app_timer_t timer1;
 static app_timer_id_t timer_id = &timer1;
 
 
-static uint8_t data[0x23] = "     GB0001";
+static uint8_t data[0x23] = "     GB0002";
 static uint8_t scan_data[0x23] = "  ";
 static void advertizer_timer_handler(void * p_context)
 {
