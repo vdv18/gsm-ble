@@ -16,6 +16,7 @@ typedef struct mac_data_s {
   uint16_t id;
   int16_t data[4];
   uint8_t flag;
+  uint32_t version;
 } mac_data_t;
 
 extern mac_data_t central_mac_data_list[];

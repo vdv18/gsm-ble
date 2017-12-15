@@ -250,6 +250,12 @@ static void ble_handler()
             }
             if(item)
             {
+              uint32_t version = 0;
+              version = ((adv_type.p_data[5])-(uint8_t)('0'));
+              version += ((adv_type.p_data[4])-(uint8_t)('0'))*10;
+              version += ((adv_type.p_data[3])-(uint8_t)('0'))*100;
+              version += ((adv_type.p_data[2])-(uint8_t)('0'))*1000;
+              item->version = version;
               memcpy(item->mac,p_peer_addr->addr,6);
               item->flag |= MAC_DATA_LIST_FLAG_ENABLED;
               item->timestamp = get_timestamp();

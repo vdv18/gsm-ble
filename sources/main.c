@@ -265,7 +265,7 @@ int prepare_json(uint8_t *data, int max_data)
   
   size += sprintf(&data[size],"}");
 #else
-  size += sprintf(&data[size],"{\"VERSION\":\"0.1\", \"TIMESTAMP\":\"%d\",\"HEX\":\"", get_timestamp());
+  size += sprintf(&data[size],"{\"VERSION\":\"0.2\", \"TIMESTAMP\":\"%d\",\"HEX\":\"", get_timestamp());
   cnt = 0;
   
   cnt++;
@@ -279,6 +279,7 @@ int prepare_json(uint8_t *data, int max_data)
     size += sprintf(&data[size],"%02X",(int)*p++);
   for(int i=0;i<MAC_DATA_LIST_SIZE;i++)
   {
+    if(central_mac_data_list[i].version != 2)
     if(((central_mac_data_list[i].flag) & (MAC_DATA_LIST_FLAG_ENABLED)) > 0)
     {
       cnt++;
@@ -288,6 +289,19 @@ int prepare_json(uint8_t *data, int max_data)
       p = (char*)central_mac_data_list[i].data;
       size += sprintf(&data[size],"%02X",0x08);
       size += sprintf(&data[size],"%02X",0x82);
+      for(int j=0;j<8;j++)
+        size += sprintf(&data[size],"%02X",(int)*p++);
+    }
+    if(central_mac_data_list[i].version == 2)
+    if(((central_mac_data_list[i].flag) & (MAC_DATA_LIST_FLAG_ENABLED)) > 0)
+    {
+      cnt++;
+      p = (char*)central_mac_data_list[i].mac;
+      for(int j=0;j<6;j++)
+        size += sprintf(&data[size],"%02X",(int)*p++);
+      p = (char*)central_mac_data_list[i].data;
+      size += sprintf(&data[size],"%02X",0x08);
+      size += sprintf(&data[size],"%02X",(0x82|0x40));
       for(int j=0;j<8;j++)
         size += sprintf(&data[size],"%02X",(int)*p++);
     }
